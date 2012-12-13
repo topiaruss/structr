@@ -580,12 +580,31 @@ var Structr = {
         return entity;
     },
     
+    updatePager : function(type) {
+        var pager = $('#pager' + type);
+        
+        if (pager) {
+            
+            var pageLeft = $('.pageLeft', pager);
+            var pageRight = $('.pageRight', pager);
+            if (page[type] == 1) {
+                pageLeft.attr('disabled', 'disabled').addClass('disabled');
+            }
+
+            if (page[type] == pageCount[type]) {
+                pageRight.attr('disabled', 'disabled').addClass('disabled');
+            }
+            
+        }
+    },
+    
     addPager : function(el, type) {
         
         el.append('<div class="pager" id="pager' + type + '" style="clear: both"><button class="pageLeft">&lt; Prev</button>'
-            + ' Page <input class="page" type="text" size="3" value="' + page[type] + '"><button class="pageRight">Next &gt;</button>'
+            + ' <input class="page" type="text" size="3" value="' + page[type] + '"><button class="pageRight">Next &gt;</button>'
             + ' of <input class="readonly pageCount" readonly="readonly" size="3">'
-            + ' Page Size: <input class="pageSize" type="text" size="3" value="' + pageSize[type] + '"></div>');
+            + ' Items: <input class="pageSize" type="text" size="3" value="' + pageSize[type] + '"></div>');
+        
         var pager = $('#pager' + type);
         
         var pageLeft = $('.pageLeft', pager);
@@ -615,6 +634,10 @@ var Structr = {
 
         if (page[type] == 1) {
             pageLeft.attr('disabled', 'disabled').addClass('disabled');
+        }
+
+        if (page[type] == pageCount[type]) {
+            pageRight.attr('disabled', 'disabled').addClass('disabled');
         }
 
         pageLeft.on('click', function() {
@@ -772,7 +795,7 @@ function formatValue(value, key, type, id) {
         $(value).each(function(i, v) {
             //console.log(v);
             out += JSON.stringify(v);
-            //out += '<tr><td>' + key + '</td><td>' + formatValue(obj[key]) + '</td></tr>' ;
+        //out += '<tr><td>' + key + '</td><td>' + formatValue(obj[key]) + '</td></tr>' ;
         });
         
         //out += '</table>';
@@ -1042,11 +1065,15 @@ function nvl(value, defaultValue) {
 }
 
 String.prototype.toCamel = function(){
-	return this.replace(/(\-[a-z])/g, function($1){return $1.toUpperCase().replace('-','');});
+    return this.replace(/(\-[a-z])/g, function($1){
+        return $1.toUpperCase().replace('-','');
+    });
 };   
 
 String.prototype.toUnderscore = function(){
-	return this.replace(/([A-Z])/g, function($1){return "_"+$1.toLowerCase();});
+    return this.replace(/([A-Z])/g, function($1){
+        return "_"+$1.toLowerCase();
+    });
 };
 
 /**
@@ -1098,9 +1125,9 @@ function fitStringToSize(str,len) {
 
 function showAjaxLoader(el) {
     
-//    if (el) {
-//        el.after($('#ajaxLoader'));
-//    }
+    //    if (el) {
+    //        el.after($('#ajaxLoader'));
+    //    }
     
     $('#ajaxLoader').show();
 }

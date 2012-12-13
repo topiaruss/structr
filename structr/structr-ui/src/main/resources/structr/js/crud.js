@@ -61,8 +61,8 @@ var _Crud = {
     schemaLoading : false,
     schemaLoaded : false,
     
-    types : [ "User", "Group", "Page", "File", "Image", "Content" ],
-    views : [ "public", "all"],
+    types : [ "Theme", "CrudEntity" ],
+    views : [ "public", "all" ],
 
     schema : [],
     keys : [],
@@ -198,7 +198,7 @@ var _Crud = {
         
         //_Crud.schema[type] = [];
         
-        var url = rootUrl + '_schema/' + type.toLowerCase();
+        var url = rootUrl + '_schema/' + type.toUnderscore();
         $.ajax({
             url: url,
             headers: headers,
@@ -919,7 +919,7 @@ var _Crud = {
                 
                 $.each(data.result, function(i, node) {
                 
-                    //console.log('node', node);
+                    console.log('node', node);
                     el.append('<div id="_' + node.id + '" class="node ' + node.type.toLowerCase() + ' ' + node.id + '_">' + fitStringToSize(node.name, 120) + '</div>');
                 
                     var nodeEl = $('#_' + node.id, el);
