@@ -24,17 +24,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
-import org.structr.common.property.Property;
 import org.structr.core.GraphObject;
 import org.structr.core.converter.PropertyConverter;
 import org.structr.core.notion.Notion;
 
 /**
+ * A property that wraps a {@see PropertyNotion} with the given notion around a {@see CollectionProperty}.
  *
  * @author Christian Morgner
  */
-
-
 public class CollectionNotionProperty<S extends GraphObject, T> extends Property<List<T>> {
 	
 	private static final Logger logger = Logger.getLogger(CollectionIdProperty.class.getName());

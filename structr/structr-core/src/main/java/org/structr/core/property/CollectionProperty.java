@@ -40,6 +40,7 @@ import org.structr.core.notion.Notion;
 import org.structr.core.notion.ObjectNotion;
 
 /**
+ * A property that defines a relationship with the given parameters between a node and a collection of other nodes.
  *
  * @author Christian Morgner
  */
@@ -163,7 +164,7 @@ public class CollectionProperty<T extends GraphObject> extends AbstractRelationP
 	}
 
 	@Override
-	public PropertyConverter<List<T>, ?> databaseConverter(SecurityContext securityContext, GraphObject entitiy) {
+	public PropertyConverter<List<T>, ?> databaseConverter(SecurityContext securityContext, GraphObject entity) {
 		return null;
 	}
 

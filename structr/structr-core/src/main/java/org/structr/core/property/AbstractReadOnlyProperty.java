@@ -18,11 +18,9 @@
  */
 package org.structr.core.property;
 
-import java.util.List;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.common.error.ReadOnlyPropertyToken;
-import org.structr.common.property.Property;
 import org.structr.core.GraphObject;
 import org.structr.core.converter.PropertyConverter;
 

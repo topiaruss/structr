@@ -26,7 +26,6 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
-import org.structr.common.property.PropertyMap;
 import org.structr.core.EntityContext;
 import org.structr.core.GraphObject;
 import org.structr.core.Services;
@@ -45,6 +44,7 @@ import org.structr.core.notion.Notion;
 import org.structr.core.notion.ObjectNotion;
 
 /**
+ * A property that defines a relationship with the given parameters between two nodes.
  *
  * @author Christian Morgner
  */

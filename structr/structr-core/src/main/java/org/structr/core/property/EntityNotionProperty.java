@@ -22,12 +22,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
-import org.structr.common.property.Property;
 import org.structr.core.GraphObject;
 import org.structr.core.converter.PropertyConverter;
 import org.structr.core.notion.Notion;
 
 /**
+* A property that wraps a {@see PropertyNotion} with the given notion around an {@see EntityProperty}.
  *
  * @author Christian Morgner
  */

@@ -22,9 +22,9 @@
 package org.structr.web.entity;
 
 import org.structr.common.PropertyView;
-import org.structr.common.property.Property;
-import org.structr.common.property.StringProperty;
 import org.structr.core.entity.AbstractNode;
+import org.structr.core.property.Property;
+import org.structr.core.property.StringProperty;
 
 //~--- classes ----------------------------------------------------------------
 

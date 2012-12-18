@@ -28,7 +28,7 @@ import org.structr.core.graph.search.SearchAttribute;
 import org.structr.core.graph.search.SearchOperator;
 
 /**
- * Interface for typed node property keys.
+ * Base interface for typed property keys.
  *
  * @author Christian Morgner
  */
@@ -46,7 +46,7 @@ public interface PropertyKey<T> {
 	
 	public T defaultValue();
 	
-	public PropertyConverter<T, ?> databaseConverter(SecurityContext securityContext, GraphObject entitiy);
+	public PropertyConverter<T, ?> databaseConverter(SecurityContext securityContext, GraphObject entity);
 	public PropertyConverter<?, T> inputConverter(SecurityContext securityContext);
 	
 	public void setDeclaringClass(Class<? extends GraphObject> declaringClass);

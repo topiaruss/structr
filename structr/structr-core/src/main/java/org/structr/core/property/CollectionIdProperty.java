@@ -19,12 +19,12 @@
 package org.structr.core.property;
 
 import java.util.List;
-import org.structr.common.property.Property;
 import org.structr.core.GraphObject;
 import org.structr.core.entity.AbstractNode;
 import org.structr.core.notion.PropertyNotion;
 
 /**
+* A property that wraps a {@see PropertyNotion} with the entity's UUID around a {@see CollectionProperty}.
  *
  * @author Christian Morgner
  */
