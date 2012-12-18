@@ -96,13 +96,6 @@ $(document).ready(function() {
         Structr.modules['components'].onload();
     });
     
-    $('#types_').on('click', function(e) {
-        e.stopPropagation();
-        main.empty();
-        Structr.activateMenuEntry('types');
-        Structr.modules['types'].onload();
-    });
-
     $('#elements_').on('click', function(e) {
         e.stopPropagation();
         main.empty();
@@ -144,6 +137,21 @@ $(document).ready(function() {
         Structr.activateMenuEntry('usersAndGroups');
         Structr.modules['usersAndGroups'].onload();
     });
+    
+    $('#types_').on('click', function(e) {
+        e.stopPropagation();
+        main.empty();
+        Structr.activateMenuEntry('types');
+        Structr.modules['types'].onload();
+    });
+
+    $('#themes_').on('click', function(e) {
+        e.stopPropagation();
+        main.empty();
+        Structr.activateMenuEntry('themes');
+        Structr.modules['themes'].onload();
+    });
+
 
     $('#usernameField').keypress(function(e) {
         e.stopPropagation();

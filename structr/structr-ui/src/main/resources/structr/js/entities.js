@@ -143,6 +143,11 @@ var _Entities = {
             if (debug) console.log('TypeDefinition: ', entity);
             lastAppendedObj = _Types.appendTypeElement(entity);
             
+        } else if (entity.type == 'Theme') {
+            
+            if (debug) console.log('Theme: ', entity);
+            lastAppendedObj = _Themes.appendThemeElement(entity);
+            
         } else {
 
             if (debug) console.log('Entity: ', entity);
