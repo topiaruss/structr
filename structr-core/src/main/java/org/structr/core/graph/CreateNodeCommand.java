@@ -40,6 +40,7 @@ import java.util.Date;
 import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.neo4j.graphdb.DynamicLabel;
 import org.structr.common.Permission;
 import org.structr.core.property.PropertyKey;
 import org.structr.core.property.PropertyMap;
@@ -97,8 +98,8 @@ public class CreateNodeCommand<T extends AbstractNode> extends NodeServiceComman
 			NodeFactory<T> nodeFactory = new NodeFactory<T>(securityContext);
 			boolean isCreation         = true;
 
-			// Create node with type
-			node = nodeFactory.createNodeWithType(graphDb.createNode(), nodeType, isCreation);
+			// Create node with type, use Neo4j's internal label (new since 2.0.0-M01)
+			node = nodeFactory.createNodeWithType(graphDb.createNode(DynamicLabel.label(nodeType)), nodeType, isCreation);
 			if(node != null) {
 				
 				if ((user != null) && user instanceof AbstractNode) {
