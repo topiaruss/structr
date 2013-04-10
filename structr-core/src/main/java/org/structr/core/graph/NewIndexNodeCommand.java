@@ -26,6 +26,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.gis.spatial.indexprovider.LayerNodeIndex;
+import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.index.Index;
@@ -75,6 +76,9 @@ public class NewIndexNodeCommand extends NodeServiceCommand {
 
 			}
 
+			// add type as label (new since Neo4j 2.0.0-M01)
+			dbNode.addLabel(DynamicLabel.label(node.getType()));
+			
 			Map<String, Set<PropertyKey>> searchablePropertyIndexMap = EntityContext.getSearchablePropertyMapForType(node.getClass());
 			for (Entry<String, Set<PropertyKey>> entry : searchablePropertyIndexMap.entrySet()) {
 				
