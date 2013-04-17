@@ -18,10 +18,11 @@
  */
 
 
-package org.structr.core.entity;
+package org.structr.web.entity;
 
+import org.structr.web.entity.Image;
 import org.structr.common.ThumbnailParameters;
-import org.structr.core.property.ThumbnailProperty;
+import org.structr.web.property.ThumbnailProperty;
 
 //~--- classes ----------------------------------------------------------------
 

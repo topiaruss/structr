@@ -168,7 +168,7 @@ public class SearchResultsTest extends StructrTest {
 
 		try {
 
-			AbstractRelationship rel = ((List<AbstractRelationship>) createTestRelationships(RelType.UNDEFINED, 1)).get(0);
+			AbstractRelationship rel = ((List<AbstractRelationship>) createTestRelationships(RelType.IS_AT, 1)).get(0);
 			PropertyKey key1         = new StringProperty("jghsdkhgshdhgsdjkfgh");
 			String val1              = "54354354546806849870";
 
@@ -220,7 +220,8 @@ public class SearchResultsTest extends StructrTest {
 			List<SearchAttribute> searchAttributes = new LinkedList<SearchAttribute>();
 
 			searchAttributes.add(new TextualSearchAttribute(AbstractNode.type, type, SearchOperator.AND));
-			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstr. 200, 60314 Frankfurt, Germany", 10.0, SearchOperator.AND));
+			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstraße", "200", "60314", "Frankfurt", null, "Germany", 10.0, SearchOperator.AND));
+//			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstr. 200, 60314 Frankfurt, Germany", 10.0, SearchOperator.AND));
 
 			Result result = searchNodeCommand.execute(includeDeletedAndHidden, publicOnly, searchAttributes);
 
@@ -316,7 +317,8 @@ public class SearchResultsTest extends StructrTest {
 			boolean publicOnly                     = false;
 			List<SearchAttribute> searchAttributes = new LinkedList<SearchAttribute>();
 
-			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstr. 200, 60314 Frankfurt, Germany", 10.0, SearchOperator.AND));
+			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstraße", "200", "60314", "Frankfurt", null, "Germany", 10.0, SearchOperator.AND));
+//			searchAttributes.add(new DistanceSearchAttribute("Hanauer Landstr. 200, 60314 Frankfurt, Germany", 10.0, SearchOperator.AND));
 
 			Result result = searchNodeCommand.execute(includeDeletedAndHidden, publicOnly, searchAttributes);
 

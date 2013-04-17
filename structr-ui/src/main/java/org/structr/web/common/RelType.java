@@ -16,25 +16,35 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with structr.  If not, see <http://www.gnu.org/licenses/>.
  */
+package org.structr.web.common;
 
-
-package org.structr.core.entity;
-
-import org.neo4j.graphdb.Direction;
-import org.structr.common.*;
-import org.structr.core.GraphObject;
-import org.structr.core.notion.PropertyNotion;
-import org.structr.core.property.CollectionProperty;
-
-//~--- interfaces -------------------------------------------------------------
+import org.neo4j.graphdb.RelationshipType;
 
 /**
- *
+ * Defines relationship types for structr's internal relationships.
+ * 
  * @author Axel Morgner
  */
-public interface Linkable extends GraphObject {
-
-	public static final CollectionProperty<AbstractNode> linkingElements = new CollectionProperty<AbstractNode>("linkingElements", AbstractNode.class, RelType.LINK, Direction.INCOMING, new PropertyNotion(AbstractNode.uuid), true);
-
-	public static final View uiView = new View(Linkable.class, PropertyView.Ui, linkingElements);
+public enum RelType implements RelationshipType {
+	
+	// web
+	CONTAINS,	
+	CONTAINS_NEXT_SIBLING,
+	DEFINES_TYPE,
+	DEFINES_PROPERTY,
+	PAGE,
+	ROOT,
+	RENDER_NODE,
+	RENDER_LIST,
+	RENDER_TREE,
+	SYNC,
+	LINK,
+	
+	// picture
+	THUMBNAIL,
+	PICTURE_OF,
+	
+	// blog
+	AUTHOR,
+	COMMENT
 }
