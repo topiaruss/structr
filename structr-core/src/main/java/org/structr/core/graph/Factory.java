@@ -185,26 +185,26 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		final int pageSize       = Math.min(size, factoryProfile.getPageSize());
 		final int page           = factoryProfile.getPage();
 		final String offsetId    = factoryProfile.getOffsetId();
-		List<T> elements         = new LinkedList<T>();
-		int position             = 0;
+		List<T> allObjects       = this.bulkInstantiate(input);
+		
+		List<T> result           = new LinkedList<T>();
+		
 		int count                = 0;
 		int offset               = 0;
 
 		// We have an offsetId, so first we need to
-		// find the node with this uuid to get the offset
-		List<T> nodesUpToOffset = new LinkedList();
+		// find the object with this uuid to get the offset
+		List<T> objectsUpToOffset = new LinkedList();
 		int i                   = 0;
 		boolean gotOffset        = false;
 
-		for (S node : input) {
-
-			T n = instantiate(node);
-
-			nodesUpToOffset.add(n);
+		for (T obj : allObjects) {
+				
+			objectsUpToOffset.add(obj);
 
 			if (!gotOffset) {
 
-				if (!offsetId.equals(n.getUuid())) {
+				if (!offsetId.equals(obj.getUuid())) {
 
 					i++;
 
@@ -228,56 +228,36 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 			throw new FrameworkException("offsetId", new IdNotFoundToken(offsetId));
 		}
 		
+		int position = 0;
+		
 		if (offset < 0) {
 			
 			// Remove last item
-			nodesUpToOffset.remove(nodesUpToOffset.size()-1);
+			objectsUpToOffset.remove(objectsUpToOffset.size()-1);
 			
-			return new Result(nodesUpToOffset, size, true, false);
+			return new Result(objectsUpToOffset, allObjects.size(), true, false);
+			
 		}
 
-		for (T node : nodesUpToOffset) {
-
-			if (node != null) {
-
-				if (++position > offset) {
-
-					// stop if we got enough nodes
-					if (++count > pageSize) {
-
-						return new Result(elements, size, true, false);
-					}
-
-					elements.add(node);
-				}
-
+		for (T obj : allObjects) {
+			
+			if (++position <= offset) {
+				
+				continue;
+				
 			}
 
-		}
+			// stop if we got enough objects
+			if (++count > pageSize) {
 
-		// If we get here, the result was not complete, so we need to iterate
-		// through the index result (input) to get more items.
-		for (S node : input) {
-
-			T n = instantiate(node);
-			if (n != null) {
-
-				if (++position > offset) {
-
-					// stop if we got enough nodes
-					if (++count > pageSize) {
-
-						return new Result(elements, size, true, false);
-					}
-
-					elements.add(n);
-				}
-
+				return new Result(result, allObjects.size(), true, false);
 			}
 
+			result.add(obj);
+
 		}
 
-		return new Result(elements, size, true, false);
+		return new Result(result, size, true, false);
 
 	}
 
@@ -308,13 +288,12 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 		} else {
 
-			// FIXME: IndexHits#size() may be inaccurate!
 			int size = input.size();
 
 			fromIndex = pageSize == Integer.MAX_VALUE ? 0 : (page - 1) * pageSize;
-			//fromIndex = (page - 1) * pageSize;
 
-			// The overall count may be inaccurate
+			// The overall count may be inaccurate here, but
+			// the page() method counts correctly now.
 			return page(input, size, fromIndex, pageSize);
 		}
 
@@ -326,25 +305,26 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		int position        = 0;
 		int count           = 0;
 		int overallCount    = 0;
+		
+		Result result       = null;
 
 		for (S node : input) {
 
 			T n = instantiate(node);
 
-			overallCount++;
-
 			if (n != null) {
+
+				overallCount++;
 
 				if (++position > offset) {
 
-					// stop if we got enough nodes
-					if (++count > pageSize) {
+					// stop to add to the list if we got enough nodes,
+					// but continue to count
+					if (++count <= pageSize) {
 
-						// The overall count may be inaccurate
-						return new Result(nodes, overallResultCount, true, false);
+						nodes.add(n);
 					}
-
-					nodes.add(n);
+					
 				}
 
 			}
@@ -353,7 +333,9 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 		// We've run completely through the iterator,
 		// so the overall count from here is accurate.
-		return new Result(nodes, overallCount, true, false);
+		result = new Result(nodes, overallCount, true, false);
+		
+		return result;
 
 	}
 
