@@ -35,6 +35,7 @@ import java.util.*;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.neo4j.gis.spatial.indexprovider.GeoPipeFlowHits;
 import org.structr.core.module.ModuleService;
 import org.neo4j.gis.spatial.indexprovider.SpatialRecordHits;
 import org.neo4j.graphdb.Direction;
@@ -167,8 +168,12 @@ public class NodeFactory<T extends AbstractNode> extends Factory<Node, T> {
 	@Override
 	public Result instantiate(final IndexHits<Node> input) throws FrameworkException {
 
-		if (input != null && input instanceof SpatialRecordHits) {
-			return resultFromSpatialRecords((SpatialRecordHits) input);
+		if (input != null) {
+			if (input instanceof SpatialRecordHits) {
+				return resultFromSpatialRecords((SpatialRecordHits) input);
+			} else if (input instanceof GeoPipeFlowHits) {
+				return resultFromSpatialRecords((GeoPipeFlowHits) input);
+			}
 		}
 
 		return super.instantiate(input);
@@ -208,7 +213,7 @@ public class NodeFactory<T extends AbstractNode> extends Factory<Node, T> {
 
 	}
 	
-	private Result resultFromSpatialRecords(final SpatialRecordHits spatialRecordHits) throws FrameworkException {
+	private Result resultFromSpatialRecords(final IndexHits spatialRecordHits) throws FrameworkException {
 
 		final int pageSize                    = factoryProfile.getPageSize();
 		final SecurityContext securityContext = factoryProfile.getSecurityContext();
@@ -220,9 +225,9 @@ public class NodeFactory<T extends AbstractNode> extends Factory<Node, T> {
 		int count                             = 0;
 		int offset                            = 0;
 
-		for (Node node : spatialRecordHits) {
+		for (Object node : spatialRecordHits) {
 
-			Node realNode = node;
+			Node realNode = (Node) node;
 			if (realNode != null) {
 
 				// FIXME: type cast is not good here...

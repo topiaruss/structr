@@ -25,9 +25,11 @@ import org.neo4j.graphdb.PropertyContainer;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.GraphObject;
+import org.structr.core.Services;
 import org.structr.core.converter.PropertyConverter;
 import org.structr.core.entity.AbstractNode;
 import org.structr.core.entity.AbstractRelationship;
+import org.structr.core.graph.ReadTransaction;
 import org.structr.core.graph.TransactionCommand;
 import org.structr.core.graph.search.SearchCommand;
 
@@ -54,64 +56,75 @@ public abstract class AbstractPrimitiveProperty<T> extends Property<T> {
 	}
 	
 	@Override
-	public T getProperty(SecurityContext securityContext, GraphObject obj, boolean applyConverter) {
-
-		Object value = null;
+	public T getProperty(final SecurityContext securityContext, final GraphObject obj, final boolean applyConverter) {
 		
-		final PropertyContainer propertyContainer = obj.getPropertyContainer();
-
-		boolean hasProperty = false;
-		
-		if (propertyContainer != null) {
+		return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<T>() {
 			
-			try {
-				// this may throw a java.lang.IllegalStateException: Relationship[<id>] has been deleted in this tx
-				hasProperty = propertyContainer.hasProperty(dbName());
-
-			} catch (NotFoundException nfex) {
-				
-				// FIXME: is logging necessary here? Node has probably been deleted
-				return null;
-
-			} catch (IllegalStateException ise) {
-
-				logger.log(Level.WARNING, "Could not determine property " + dbName + " of the requested graph object", ise);
-
-			}
-
-			if (hasProperty) {
-
-				value = propertyContainer.getProperty(dbName());
-
-			}
-		}
-
-		if (applyConverter) {
-
-			// apply property converters
-			PropertyConverter converter = databaseConverter(securityContext, obj);
-			if (converter != null) {
-
-				try {
-					value = converter.revert(value);
-
-				} catch(Throwable t) {
-
-					logger.log(Level.WARNING, "Unable to convert property {0} of type {1}: {2}", new Object[] {
-						dbName(),
-						getClass().getSimpleName(),
-						t.getMessage()
-					});
-				}
-			}
-		}
-
-		// no value found, use schema default
-		if (value == null) {
-			value = defaultValue();
-		}
+			@Override
+			public T execute() throws FrameworkException {
 		
-		return (T)value;
+
+				Object value = null;
+
+				final PropertyContainer propertyContainer = obj.getPropertyContainer();
+
+				boolean hasProperty = false;
+
+				if (propertyContainer != null) {
+
+					try {
+						// this may throw a java.lang.IllegalStateException: Relationship[<id>] has been deleted in this tx
+						hasProperty = propertyContainer.hasProperty(dbName());
+
+					} catch (NotFoundException nfex) {
+
+						// FIXME: is logging necessary here? Node has probably been deleted
+						return null;
+
+					} catch (IllegalStateException ise) {
+
+						logger.log(Level.WARNING, "Could not determine property " + dbName + " of the requested graph object", ise);
+
+					}
+
+					if (hasProperty) {
+
+						value = propertyContainer.getProperty(dbName());
+
+					}
+				}
+
+				if (applyConverter) {
+
+					// apply property converters
+					PropertyConverter converter = databaseConverter(securityContext, obj);
+					if (converter != null) {
+
+						try {
+							value = converter.revert(value);
+
+						} catch(Throwable t) {
+
+							logger.log(Level.WARNING, "Unable to convert property {0} of type {1}: {2}", new Object[] {
+								dbName(),
+								getClass().getSimpleName(),
+								t.getMessage()
+							});
+						}
+					}
+				}
+
+				// no value found, use schema default
+				if (value == null) {
+					value = defaultValue();
+				}
+
+				return (T)value;
+		
+			}
+			
+		});
+		
 	}
 	
 	@Override

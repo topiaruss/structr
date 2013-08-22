@@ -18,6 +18,7 @@
  */
 package org.structr.core.property;
 
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.graphdb.Direction;
@@ -38,6 +39,7 @@ import org.structr.core.graph.CreateNodeCommand;
 import org.structr.core.graph.CreateRelationshipCommand;
 import org.structr.core.graph.NodeAttribute;
 import org.structr.core.graph.NodeFactory;
+import org.structr.core.graph.ReadTransaction;
 import org.structr.core.graph.StructrTransaction;
 import org.structr.core.graph.TransactionCommand;
 import org.structr.core.notion.Notion;
@@ -283,7 +285,7 @@ public class EntityProperty<T extends GraphObject> extends AbstractRelationPrope
 		});
 	}
 	
-	public T getRelatedNode(SecurityContext securityContext, GraphObject obj, Class destinationType) {
+	public T getRelatedNode(final SecurityContext securityContext, final GraphObject obj, final Class destinationType) {
 		
 		if (obj instanceof AbstractNode) {
 
@@ -291,21 +293,31 @@ public class EntityProperty<T extends GraphObject> extends AbstractRelationPrope
 
 			if (cardinality.equals(Relation.Cardinality.OneToOne) || cardinality.equals(Relation.Cardinality.ManyToOne)) {
 
-				NodeFactory nodeFactory = new NodeFactory(securityContext);
-				Node dbNode             = node.getNode();
-				AbstractNode value      = null;
+				final NodeFactory nodeFactory = new NodeFactory(securityContext);
+				final Node dbNode             = node.getNode();
 
 				try {
 
-					for (Relationship rel : dbNode.getRelationships(getRelType(), getDirection())) {
+					return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<T>() {
 
-						value = nodeFactory.instantiate(rel.getOtherNode(dbNode));
+						@Override
+						public T execute() throws FrameworkException {
+					
+							for (Relationship rel : dbNode.getRelationships(getRelType(), getDirection())) {
 
-						// break on first hit of desired type
-						if (value != null && destinationType.isInstance(value)) {
-							return (T)value;
+								AbstractNode value = nodeFactory.instantiate(rel.getOtherNode(dbNode));
+
+								// break on first hit of desired type
+								if (value != null && destinationType.isInstance(value)) {
+									return (T)value;
+								}
+							}
+							
+							return null;
+							
 						}
-					}
+						
+					});
 
 				} catch (Throwable t) {
 

@@ -62,6 +62,7 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.index.Index;
 import org.structr.core.IterableAdapter;
 import org.structr.core.graph.NodeService;
+import org.structr.core.graph.ReadTransaction;
 import org.structr.core.graph.RelationshipFactory;
 import org.structr.core.property.EntityIdProperty;
 import org.structr.core.property.EntityProperty;
@@ -451,14 +452,16 @@ public abstract class AbstractNode implements GraphObject, Comparable<AbstractNo
 		return getProperty(key, true);
 	}
 	
-	private <T> T getProperty(final PropertyKey<T> key, boolean applyConverter) {
-
+	private <T> T getProperty(final PropertyKey<T> key, final boolean applyConverter) {
+		
 		// early null check, this should not happen...
 		if (key == null || key.dbName() == null) {
 			return null;
 		}
-		
+
 		return key.getProperty(securityContext, this, applyConverter);
+
+
 	}
 
 	public String getPropertyMD5(final PropertyKey key) {
@@ -655,25 +658,35 @@ public abstract class AbstractNode implements GraphObject, Comparable<AbstractNo
 	 *
 	 * @return list with relationships
 	 */
-	public Iterable<AbstractRelationship> getRelationships(RelationshipType type, Direction dir) {
+	public Iterable<AbstractRelationship> getRelationships(final RelationshipType type, final Direction dir) {
 
-		RelationshipFactory factory = new RelationshipFactory(securityContext);
-		Iterable<Relationship> rels = null;
+			return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<Iterable>() {
+
+				@Override
+				public Iterable execute() throws FrameworkException {
 		
-		if (type != null && dir != null) {
-			
-			rels = dbNode.getRelationships(type, dir);
-			
-		} else if (type != null) {
-			
-			rels = dbNode.getRelationships(type);
-			
-		} else if (dir != null) {
-			
-			rels = dbNode.getRelationships(dir);
-		}
+					RelationshipFactory factory = new RelationshipFactory(securityContext);
+					Iterable<Relationship> rels = null;
+
+					if (type != null && dir != null) {
+
+						rels = dbNode.getRelationships(type, dir);
+
+					} else if (type != null) {
+
+						rels = dbNode.getRelationships(type);
+
+					} else if (dir != null) {
+
+						rels = dbNode.getRelationships(dir);
+					}
+
+					return new IterableAdapter<Relationship, AbstractRelationship>(rels, factory);
 		
-		return new IterableAdapter<Relationship, AbstractRelationship>(rels, factory);
+				}
+				
+			});
+
 	}
 
 	/**

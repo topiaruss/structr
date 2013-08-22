@@ -30,7 +30,7 @@ import org.structr.common.error.FrameworkException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
 import org.structr.core.Services;
 import org.structr.core.entity.AbstractNode;
@@ -149,28 +149,29 @@ public class ModifyGraphObjectsTest extends StructrTest {
 				}
 			});
 			
-			assertTrue("Expected relationship to have a value for key '" + key1.dbName() + "'", rel.getRelationship().hasProperty(key1.dbName()));
-			
-			assertEquals(val1, rel.getRelationship().getProperty(key1.dbName()));
-			
-			Object vrfy1 = rel.getProperty(key1);
-			assertEquals(val1, vrfy1);
-			
-			final String val2 = "öljkhöohü8osdfhoödhi";
-			
 			Services.command(securityContext, TransactionCommand.class).execute(new StructrTransaction() {
 
 				@Override
 				public Object execute() throws FrameworkException {
 			
+					assertTrue("Expected relationship to have a value for key '" + key1.dbName() + "'", rel.getRelationship().hasProperty(key1.dbName()));
+
+					assertEquals(val1, rel.getRelationship().getProperty(key1.dbName()));
+
+					Object vrfy1 = rel.getProperty(key1);
+					assertEquals(val1, vrfy1);
+
+					final String val2 = "öljkhöohü8osdfhoödhi";
+			
 					rel.setProperty(key1, val2);
+					
+					Object vrfy2 = rel.getProperty(key1);
+					assertEquals(val2, vrfy2);
 					
 					return null;
 				}
 			});
 			
-			Object vrfy2 = rel.getProperty(key1);
-			assertEquals(val2, vrfy2);
 			
 
 		} catch (FrameworkException ex) {

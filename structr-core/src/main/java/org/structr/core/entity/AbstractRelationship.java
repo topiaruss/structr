@@ -55,6 +55,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.graphdb.index.Index;
 import org.structr.core.graph.NodeService;
+import org.structr.core.graph.ReadTransaction;
 import org.structr.core.property.CombinedTypeProperty;
 
 //~--- classes ----------------------------------------------------------------
@@ -465,11 +466,20 @@ public abstract class AbstractRelationship implements GraphObject, Comparable<Ab
 	public AbstractNode getEndNode() {
 
 		try {
-			NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
-			return (AbstractNode) nodeFactory.instantiate(dbRelationship.getEndNode());
+			return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<AbstractNode>() {
+
+				@Override
+				public AbstractNode execute() throws FrameworkException {
+
+					NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
+					return (AbstractNode) nodeFactory.instantiate(dbRelationship.getEndNode());
 			
+				}
+			});
+
 		} catch (Throwable t) {
-			// ignore
+			// ignore, but log!
+			logger.log(Level.SEVERE, "End node could not be instantiated", t);
 		}
 		
 		return null;
@@ -478,12 +488,20 @@ public abstract class AbstractRelationship implements GraphObject, Comparable<Ab
 	public AbstractNode getStartNode() {
 
 		try {
+			return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<AbstractNode>() {
 
-			NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
-			return (AbstractNode) nodeFactory.instantiate(dbRelationship.getStartNode());
+				@Override
+				public AbstractNode execute() throws FrameworkException {
+
+					NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
+					return (AbstractNode) nodeFactory.instantiate(dbRelationship.getStartNode());
+			
+				}
+			});
 			
 		} catch (Throwable t) {
-			// ignore
+			// ignore, but log!
+			logger.log(Level.SEVERE, "Start node could not be instantiated", t);
 		}
 		
 		return null;
@@ -493,11 +511,20 @@ public abstract class AbstractRelationship implements GraphObject, Comparable<Ab
 
 		try {
 
-			NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
-			return (AbstractNode) nodeFactory.instantiate(dbRelationship.getOtherNode(node.getNode()));
+			return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<AbstractNode>() {
+
+				@Override
+				public AbstractNode execute() throws FrameworkException {
+					
+					NodeFactory nodeFactory = new NodeFactory(SecurityContext.getSuperUserInstance());
+					return (AbstractNode) nodeFactory.instantiate(dbRelationship.getOtherNode(node.getNode()));
 			
+				}
+			});
+
 		} catch (Throwable t) {
-			// ignore
+			// ignore, but log!
+			logger.log(Level.SEVERE, "Start node could not be instantiated", t);
 		}
 		
 		return null;
@@ -506,7 +533,16 @@ public abstract class AbstractRelationship implements GraphObject, Comparable<Ab
 
 	public RelationshipType getRelType() {
 
-		return dbRelationship.getType();
+		return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<RelationshipType>() {
+
+			@Override
+			public RelationshipType execute() throws FrameworkException {
+
+				return dbRelationship.getType();
+
+			}
+
+		});
 
 	}
 

@@ -134,6 +134,7 @@ public class CollectionPropertyTest extends StructrTest {
 		instance.setProperty(securityContext, testSix1, twoTestOnesToList);
 		
 		// verify that the relationships in testSix1 have in fact been created
+		
 		List<TestOne> vrfy1 = instance.getProperty(securityContext, testSix1, true);
 		assertNotNull(vrfy1);
 		assertEquals(2, vrfy1.size());

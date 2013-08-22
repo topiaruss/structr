@@ -335,6 +335,11 @@ public class DeleteGraphObjectsTest extends StructrTest {
 
 			// Create a relationship with DELETE_INCOMING
 			AbstractRelationship rel = cascadeRel(TestOne.class, TestTwo.class, Relation.DELETE_INCOMING | Relation.DELETE_OUTGOING);
+			
+			assertNotNull(rel);
+			assertNotNull(rel.getStartNode());
+			assertNotNull(rel.getEndNode());
+			
 			final String startNodeId = rel.getStartNode().getUuid();
 			final String endNodeId   = rel.getEndNode().getUuid();
 

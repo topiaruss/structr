@@ -99,6 +99,37 @@ public class TransactionCommand extends NodeServiceCommand {
 		}
 	}
 
+	/**
+	 * Simple wrapper for read-only transactions.
+	 * 
+	 * @param transaction 
+	 */
+	public <T> T execute(ReadTransaction<T> transaction) {
+		
+		GraphDatabaseService graphDb    = (GraphDatabaseService) arguments.get("graphDb");
+		Transaction tx = graphDb.beginTx();
+
+		try {
+			return transaction.execute();
+
+		} catch (Throwable t) {
+
+			tx.failure();
+
+			// TODO: add debugging switch!
+			t.printStackTrace();
+		
+		} finally {
+
+			tx.success();
+			tx.finish();
+					
+		}
+		
+		return null;
+			 
+	}
+
 	private <T> T executeInternal(StructrTransaction<T> transaction) throws FrameworkException {
 		
 		GraphDatabaseService graphDb    = (GraphDatabaseService) arguments.get("graphDb");

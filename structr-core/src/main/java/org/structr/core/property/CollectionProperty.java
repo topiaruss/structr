@@ -33,11 +33,14 @@ import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.EntityContext;
 import org.structr.core.GraphObject;
+import org.structr.core.Services;
 import org.structr.core.converter.PropertyConverter;
 import org.structr.core.entity.AbstractNode;
 import org.structr.core.entity.Relation;
 import org.structr.core.entity.Relation.Cardinality;
 import org.structr.core.graph.NodeFactory;
+import org.structr.core.graph.ReadTransaction;
+import org.structr.core.graph.TransactionCommand;
 import org.structr.core.notion.Notion;
 import org.structr.core.notion.ObjectNotion;
 
@@ -259,7 +262,7 @@ public class CollectionProperty<T extends GraphObject> extends AbstractRelationP
 		return oneToMany;
 	}
 	
-	public List<T> getRelatedNodes(SecurityContext securityContext, GraphObject obj, Class destinationType) {
+	public List<T> getRelatedNodes(final SecurityContext securityContext, final GraphObject obj, final Class destinationType) {
 
 		if (obj instanceof AbstractNode) {
 
@@ -267,27 +270,35 @@ public class CollectionProperty<T extends GraphObject> extends AbstractRelationP
 
 			if (cardinality.equals(Relation.Cardinality.OneToMany) || cardinality.equals(Relation.Cardinality.ManyToMany)) {
 
-				NodeFactory nodeFactory = new NodeFactory(securityContext, false, false);
-				List<T> nodes           = new LinkedList<T>();
-				Node dbNode             = node.getNode();
-				AbstractNode value      = null;
+				final NodeFactory nodeFactory = new NodeFactory(securityContext, false, false);
+				final Node dbNode             = node.getNode();
 
 				try {
 
-					for (Relationship rel : dbNode.getRelationships(getRelType(), getDirection())) {
+					return Services.command(securityContext, TransactionCommand.class).execute(new ReadTransaction<List<T>>() {
 
-						value = nodeFactory.instantiate(rel.getOtherNode(dbNode));
-						if (value != null && destinationType.isInstance(value)) {
+						@Override
+						public List<T> execute() throws FrameworkException {
 
-							nodes.add((T)value);
+							List<T> nodes = new LinkedList();
+
+							for (Relationship rel : dbNode.getRelationships(getRelType(), getDirection())) {
+
+								AbstractNode value = nodeFactory.instantiate(rel.getOtherNode(dbNode));
+								if (value != null && destinationType.isInstance(value)) {
+
+									nodes.add((T)value);
+								}
+							}
+
+							return nodes;
+
 						}
-					}
-
-					return nodes;
+					});
 
 				} catch (Throwable t) {
 
-					logger.log(Level.WARNING, "Unable to fetch related node: {0}", t.getMessage());
+					logger.log(Level.WARNING, "Unable to fetch related node: {0}", t);
 				}
 
 			} else {

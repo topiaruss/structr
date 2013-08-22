@@ -31,7 +31,6 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.index.impl.lucene.LuceneIndexImplementation;
-import org.neo4j.kernel.EmbeddedGraphDatabase;
 
 import org.structr.core.Command;
 import org.structr.core.RunnableService;
@@ -48,7 +47,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.cypher.javacompat.ExecutionEngine;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.shell.ShellSettings;
 
 //~--- classes ----------------------------------------------------------------
@@ -180,7 +179,9 @@ public class NodeService implements SingletonService {
 
 		logger.log(Level.INFO, "Database ready.");
 		logger.log(Level.FINE, "Initializing UUID index...");
-
+		
+		Transaction tx = graphDb.beginTx();
+		
 		uuidIndex = graphDb.index().forNodes("uuidAllNodes", LuceneIndexImplementation.EXACT_CONFIG);
 		nodeIndices.put(NodeIndex.uuid, uuidIndex);
 
@@ -243,10 +244,14 @@ public class NodeService implements SingletonService {
 
 		logger.log(Level.FINE, "Relationship factory ready.");
 		cypherExecutionEngine = new ExecutionEngine(graphDb);
-		
+
 		logger.log(Level.FINE, "Cypher execution engine ready.");
-		
+
 		isInitialized = true;
+		
+		tx.success();
+		tx.finish();
+		
 	}
 
 	@Override
