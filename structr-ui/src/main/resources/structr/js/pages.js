@@ -995,16 +995,25 @@ var _Pages = {
 
                     //var pattern = /^\[[a-zA-Z]+\]$/;
                     var pattern = /\[[a-zA-Z]+\]/g;
+                    var dCssPattern = /\[!d-cssStyle\]/g;
+                    
                     var text = source.source;
                     if (text) {
-
+                        
                         var rawMatches = text.match(pattern);
+                        var dRawCssatches = text.match(dCssPattern);
 
-                        if (rawMatches) {
+                        if (rawMatches || dRawCssatches) {
 
-                            var matches = $.unique(rawMatches);
-
-                            if (matches && matches.length) {
+                            var matches,
+                                dCssMatches;
+                        
+                            if(rawMatches)
+                                matches = $.unique(rawMatches);
+                            if(dRawCssatches)
+                                dCssMatches = $.unique(dRawCssatches);
+                            
+                            if ((matches && matches.length) || (dCssMatches && dCssMatches.length)) {
 
                                 Structr.dialog('Configure Widget', function() {
                                 }, function() {
@@ -1012,27 +1021,88 @@ var _Pages = {
 
                                 dialogText.append('<p>Fill out the following parameters to correctly configure the widget.</p><table class="props"></table>');
                                 var table = $('table', dialogText);
+                                
+                                //Input fields [inputName]
+                                if(matches){
+                                    $.each(matches, function(i, match) {
 
-                                $.each(matches, function(i, match) {
+                                        var label = _Crud.formatKey(match.replace(/\[/, '').replace(/\]/, ''));
+                                        table.append('<tr><td><label for="' + label + '">' + label + '</label></td><td><input type="text" id="' + match + '" placeholder="' + label + '"></td></tr>');
 
-                                    var label = _Crud.formatKey(match.replace(/\[/, '').replace(/\]/, ''));
-                                    table.append('<tr><td><label for="' + label + '">' + label + '</label></td><td><input type="text" id="' + match + '" placeholder="' + label + '"></td></tr>');
-
-                                });
+                                    });
+                                }
+                                
+                                /* 
+                                 * design field
+                                 * change the style width
+                                 * [!d-cssStyle]
+                                 */
+                                if(dCssMatches){
+                                    $.each(dCssMatches, function(i, match){
+                                                       
+                                        var dButton = $('<button style="margin-bottom:1em;"> Open </button>');
+                                        var dArea = $('<div style="display:none;"></div>');
+                                        var dElement = $('<div id="designIn'+i+'" style="background-color:grey;color:black;height:2em;width:10em">Preview</div>');
+                                        var dTextArea = $('<textarea cols="20" rows="5" style="margin-top:1em;">background-color:grey;\ncolor:black;\nwidth:10em;\nheight:2em;</textarea>');
+                                        var dTestCssButton = $('<button>Apply Changes</button>');
+                                        
+                                        dTestCssButton.click(function(){
+                                            dButton.html(" Close ");
+                                            var textAreaValue = dTextArea.val();
+                                            var tAreaSplit = textAreaValue.split("\n");
+                                            
+                                            $.each(tAreaSplit, function(){
+                                                var cssAttr = this.toString().split(":")[0];
+                                                var cssVal = this.toString().split(":")[1];
+                                                
+                                                if(cssVal.charAt(cssVal.length-1) === ';')
+                                                    cssVal = cssVal.substr(0,cssVal.length-1);
+                                                
+                                                dElement.css(cssAttr,cssVal);
+                                                
+                                            });
+                                            cssStyle = dElement.attr("style");
+                                        });
+                                        
+                                        dArea.append(dElement);
+                                        dArea.append(dTextArea);
+                                        dArea.append(dTestCssButton);
+                                        
+                                        var open=true;
+                                        dButton.click(function(){
+                                            dArea.toggle(200);
+                                            open=!open;
+                                            if(open)
+                                                dButton.html(" Open ");
+                                            else
+                                                dButton.html(" Close ");
+                                        });
+                                        
+                                        table.append('<tr><td>Design</td><td id="design'+i+'"></td></tr>');
+                                        $("#design"+i).append(dButton);
+                                        $('#design'+i).append(dArea);
+                                    });
+                                }
 
                                 dialog.append('<button id="appendWidget">Append Widget</button>');
                                 var attrs = {};
                                 $('#appendWidget').on('click', function(e) {
 
-                                    $.each(matches, function(i, match) {
+                                    if(matches)
+                                        $.each(matches, function(i, match) {
 
-                                        $.each($('input[type="text"]', table), function(i, m) {
-                                            var key = $(m).prop('id').replace(/\[/, '').replace(/\]/, '')
-                                            attrs[key] = $(this).val();
-                                            //console.log(this, match, key, attrs[key]);
+                                            $.each($('input[type="text"]', table), function(i, m) {
+                                                var key = $(m).prop('id').replace(/\[/, '').replace(/\]/, '')
+                                                attrs[key] = $(this).val();
+                                                //console.log(this, match, key, attrs[key]);
+                                            });
+
                                         });
-
-                                    });
+                                    
+                                    if(dCssMatches)
+                                        $.each(dCssMatches,function(i,match){
+                                            text=text.replace(dCssPattern,$('#designIn'+i).attr("style"));
+                                        });
 
                                     //console.log(source.source, elementId, pageId, attrs);
                                     e.stopPropagation();
@@ -1045,7 +1115,7 @@ var _Pages = {
 
                             }
 
-                        } else {
+                        }else{
 
                             // If no matches, directly append widget
                             Command.appendWidget(source.source, elementId, pageId, baseUrl);
