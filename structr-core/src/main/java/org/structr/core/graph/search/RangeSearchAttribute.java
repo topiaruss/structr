@@ -21,6 +21,7 @@ package org.structr.core.graph.search;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.search.BooleanClause.Occur;
 
 import org.apache.lucene.search.Query;
@@ -115,7 +116,32 @@ public class RangeSearchAttribute<T> extends SearchAttribute {
 
 	@Override
 	public boolean includeInResult(GraphObject entity) {
-		return true;
+		
+		T nodeValue          = (T) entity.getProperty(getKey());
+		Occur occur          = getOccur();
+		
+		if (nodeValue == null) {
+			
+			return occur.equals(Occur.MUST_NOT);
+			
+		}
+		
+		boolean isInRange = (compare(nodeValue, rangeStart) >= 0 && compare(nodeValue, rangeEnd) <= 0);
+		
+		return isInRange && !occur.equals(Occur.MUST_NOT);
+	}
+
+	private int compare(T nodeValue, T searchValue) {
+		
+		if (nodeValue instanceof Comparable && searchValue instanceof Comparable) {
+			
+			Comparable n = (Comparable)nodeValue;
+			Comparable s = (Comparable)searchValue;
+			
+			return n.compareTo(s);
+		}
+		
+		return 0;
 	}
 
 	@Override
