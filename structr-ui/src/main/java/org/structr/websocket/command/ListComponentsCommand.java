@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2010-2013 Axel Morgner, structr <structr@structr.org>
+ * Copyright (C) 2010-2014 Axel Morgner, structr <structr@structr.org>
  *
  * This file is part of structr <http://structr.org>.
  *
@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with structr.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 
 package org.structr.websocket.command;
 
