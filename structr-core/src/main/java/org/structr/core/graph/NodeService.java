@@ -30,7 +30,6 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.index.impl.lucene.LuceneIndexImplementation;
-import org.neo4j.kernel.EmbeddedGraphDatabase;
 
 import org.structr.core.Command;
 import org.structr.core.RunnableService;
@@ -47,7 +46,6 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.cypher.javacompat.ExecutionEngine;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.shell.ShellSettings;
 
 //~--- classes ----------------------------------------------------------------

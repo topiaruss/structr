@@ -26,7 +26,6 @@ import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.EntityContext;
 import org.structr.core.Result;
-import org.structr.core.Services;
 import org.structr.core.entity.AbstractNode;
 import org.structr.core.entity.AbstractRelationship;
 
@@ -37,6 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.helpers.Predicate;
+import org.neo4j.helpers.collection.Iterables;
+import org.structr.core.GraphObject;
 
 //~--- classes ----------------------------------------------------------------
 
@@ -49,13 +53,15 @@ import java.util.logging.Logger;
  */
 public class BulkRebuildIndexCommand extends NodeServiceCommand implements MaintenanceCommand {
 
-	private static final Logger logger = Logger.getLogger(BulkRebuildIndexCommand.class.getName());
+	private static final Logger logger   = Logger.getLogger(BulkRebuildIndexCommand.class.getName());
+	private static final String uuidName = GraphObject.uuid.dbName();
 
 	//~--- methods --------------------------------------------------------
 
 	@Override
 	public void execute(Map<String, Object> attributes) throws FrameworkException {
 
+		final String mode                      = (String) attributes.get("mode");
 		final String entityType                = (String) attributes.get("type");
 		final String relType                   = (String) attributes.get("relType");
 		final GraphDatabaseService graphDb     = (GraphDatabaseService) arguments.get("graphDb");
@@ -68,104 +74,131 @@ public class BulkRebuildIndexCommand extends NodeServiceCommand implements Maint
 
 			type = EntityContext.getEntityClassForRawType(entityType);
 		}
-		// final Result<AbstractNode> result = Services.command(securityContext, SearchNodeCommand.class).execute(true, false, Search.andExactType(type.getSimpleName()));
-		final Result<AbstractNode> result = nodeFactory.instantiateAll(GlobalGraphOperations.at(graphDb).getAllNodes());
-		final List<AbstractNode> nodes    = new ArrayList<AbstractNode>();
-
-		for (AbstractNode node : result.getResults()) {
-
-			if (type == null || node.getClass().equals(type)) {
-
-				nodes.add(node);
-			}
-
-		}
-
-		if (type == null) {
-	
-			logger.log(Level.INFO, "Node type not set or no entity class found. Starting (re-)indexing all nodes");
-			
-		} else {
-			
-			logger.log(Level.INFO, "Starting (re-)indexing all nodes of type {0}", new Object[] { type.getSimpleName() });
-		}
-
-		long count = bulkGraphOperation(securityContext, nodes, 1000, "RebuildNodeIndex", new BulkGraphOperation<AbstractNode>() {
-
-			@Override
-			public void handleGraphObject(SecurityContext securityContext, AbstractNode node) {
-
-				node.updateInIndex();
-
-			}
-			@Override
-			public void handleThrowable(SecurityContext securityContext, Throwable t, AbstractNode node) {
-
-				logger.log(Level.WARNING, "Unable to index node {0}: {1}", new Object[] { node, t.getMessage() });
-
-			}
-			@Override
-			public void handleTransactionFailure(SecurityContext securityContext, Throwable t) {
-
-				logger.log(Level.WARNING, "Unable to index node: {0}", t.getMessage());
-
-			}
-
-		});
-
-		logger.log(Level.INFO, "Done with (re-)indexing {0} nodes", count);
-
-		// final Result<AbstractNode> result = Services.command(securityContext, SearchNodeCommand.class).execute(true, false, Search.andExactType(type.getSimpleName()));
-		final List<AbstractRelationship> unfilteredRels = relFactory.instantiate(GlobalGraphOperations.at(graphDb).getAllRelationships());
-		final List<AbstractRelationship> rels           = new ArrayList<AbstractRelationship>();
-
-		for (AbstractRelationship rel : unfilteredRels) {
-
-			if (relType == null || rel.getType().equals(relType)) {
-
-				rels.add(rel);
-			}
-
-		}
-
-		if (relType == null) {
-
-			logger.log(Level.INFO, "Relationship type not set, starting (re-)indexing all relationships");
-			
-		} else {
 		
-			logger.log(Level.INFO, "Starting (re-)indexing all relationships of type {0}", new Object[] { relType });
+		if (mode == null || "nodesOnly".equals(mode)) {
+			
+			final Result<AbstractNode> result = nodeFactory.instantiateAll(Iterables.filter(new NodeUuidPredicate(), GlobalGraphOperations.at(graphDb).getAllNodes()));
+			final List<AbstractNode> nodes    = new ArrayList<AbstractNode>();
+			long count                        = 0;
+
+			for (AbstractNode node : result.getResults()) {
+
+				if (type == null || node.getClass().equals(type)) {
+
+					nodes.add(node);
+				}
+
+			}
+
+			if (type == null) {
+
+				logger.log(Level.INFO, "Node type not set or no entity class found. Starting (re-)indexing all nodes");
+
+			} else {
+
+				logger.log(Level.INFO, "Starting (re-)indexing all nodes of type {0}", new Object[] { type.getSimpleName() });
+			}
+
+			count = bulkGraphOperation(securityContext, nodes, 1000, "RebuildNodeIndex", new BulkGraphOperation<AbstractNode>() {
+
+				@Override
+				public void handleGraphObject(SecurityContext securityContext, AbstractNode node) {
+
+					node.updateInIndex();
+
+				}
+				@Override
+				public void handleThrowable(SecurityContext securityContext, Throwable t, AbstractNode node) {
+
+					t.printStackTrace();
+
+					logger.log(Level.WARNING, "Unable to index node {0}: {1}", new Object[] { node, t.getMessage() });
+
+				}
+				@Override
+				public void handleTransactionFailure(SecurityContext securityContext, Throwable t) {
+
+					t.printStackTrace();
+					
+					logger.log(Level.WARNING, "Unable to index node: {0}", t.getMessage());
+
+				}
+
+			});
+
+			logger.log(Level.INFO, "Done with (re-)indexing {0} nodes", count);
 			
 		}
 
-		count = bulkGraphOperation(securityContext, rels, 1000, "RebuildRelIndex", new BulkGraphOperation<AbstractRelationship>() {
+		if (mode == null || "relsOnly".equals(mode)) {
 
-			@Override
-			public void handleGraphObject(SecurityContext securityContext, AbstractRelationship rel) {
+			final List<AbstractRelationship> unfilteredRels = relFactory.instantiate(Iterables.filter(new RelationshipUuidPredicate(), GlobalGraphOperations.at(graphDb).getAllRelationships()));
+			final List<AbstractRelationship> rels           = new ArrayList<AbstractRelationship>();
+			long count                                      = 0;
 
-				rel.updateInIndex();
+			for (AbstractRelationship rel : unfilteredRels) {
 
-			}
-			@Override
-			public void handleThrowable(SecurityContext securityContext, Throwable t, AbstractRelationship rel) {
+				if (relType == null || rel.getType().equals(relType)) {
 
-				logger.log(Level.WARNING, "Unable to index relationship {0}: {1}", new Object[] { rel, t.getMessage() });
-
-			}
-			@Override
-			public void handleTransactionFailure(SecurityContext securityContext, Throwable t) {
-
-				logger.log(Level.WARNING, "Unable to index relationship: {0}", t.getMessage());
+					rels.add(rel);
+				}
 
 			}
 
-		});
+			if (relType == null) {
 
-		logger.log(Level.INFO, "Done with (re-)indexing {0} relationships", count);
+				logger.log(Level.INFO, "Relationship type not set, starting (re-)indexing all relationships");
+
+			} else {
+
+				logger.log(Level.INFO, "Starting (re-)indexing all relationships of type {0}", new Object[] { relType });
+
+			}
+
+			count = bulkGraphOperation(securityContext, rels, 1000, "RebuildRelIndex", new BulkGraphOperation<AbstractRelationship>() {
+
+				@Override
+				public void handleGraphObject(SecurityContext securityContext, AbstractRelationship rel) {
+
+					rel.updateInIndex();
+
+				}
+				@Override
+				public void handleThrowable(SecurityContext securityContext, Throwable t, AbstractRelationship rel) {
+
+					logger.log(Level.WARNING, "Unable to index relationship {0}: {1}", new Object[] { rel, t.getMessage() });
+
+				}
+				@Override
+				public void handleTransactionFailure(SecurityContext securityContext, Throwable t) {
+
+					logger.log(Level.WARNING, "Unable to index relationship: {0}", t.getMessage());
+
+				}
+
+			});
+
+			logger.log(Level.INFO, "Done with (re-)indexing {0} relationships", count);
+		}
 
 		return;
 
 
 	}
 
+	private static class NodeUuidPredicate implements Predicate<Node> {
+
+		@Override
+		public boolean accept(final Node node) {
+			return node.hasProperty(uuidName);
+		}
+	}
+
+	private static class RelationshipUuidPredicate implements Predicate<Relationship> {
+
+		@Override
+		public boolean accept(final Relationship rel) {
+			return rel.hasProperty(uuidName);
+		}
+	}
 }
