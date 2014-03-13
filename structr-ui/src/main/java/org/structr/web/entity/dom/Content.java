@@ -47,7 +47,7 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.structr.common.Permission;
 import org.structr.core.graph.search.SearchCommand;
-import org.structr.web.common.AsyncBuffer;
+import org.structr.web.common.StructrBuffer;
 import org.structr.web.common.RenderContext.EditMode;
 import static org.structr.web.entity.dom.DOMNode.hideOnDetail;
 import static org.structr.web.entity.dom.DOMNode.hideOnIndex;
@@ -178,7 +178,7 @@ public class Content extends DOMNode implements Text {
 		String id            = getUuid();
 		EditMode edit        = renderContext.getEditMode(securityContext.getUser(false));
 		boolean inBody       = renderContext.inBody();
-		AsyncBuffer out       = renderContext.getBuffer();
+		StructrBuffer out       = renderContext.getBuffer();
 		
 		String _contentType = getProperty(contentType);
 

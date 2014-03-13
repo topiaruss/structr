@@ -38,6 +38,7 @@ import org.structr.common.error.InvalidPropertySchemaToken;
 import org.structr.core.app.App;
 import org.structr.core.app.StructrApp;
 import org.structr.core.entity.DynamicResourceAccess;
+import org.structr.core.entity.ResourceAccess;
 import org.structr.core.entity.SchemaNode;
 import org.structr.core.entity.relationship.SchemaRelationship;
 import org.structr.core.graph.NodeAttribute;
@@ -237,7 +238,8 @@ public class SchemaHelper {
 		final App app = StructrApp.getInstance();
 		try {
 
-			DynamicResourceAccess grant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, signature).getFirst();
+			// CHM 20140313: search for all ResourceAccess objects, not only dynamic ones to prevent signature clash
+			ResourceAccess grant = app.nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).getFirst();
 			long flagsValue = 255;
 
 			// set value from grant flags

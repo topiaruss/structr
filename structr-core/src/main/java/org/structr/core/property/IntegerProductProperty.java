@@ -30,11 +30,11 @@ import org.apache.lucene.search.SortField;
  *
  * @author Christian Morgner
  */
-public class IntegerSumProperty extends AbstractReadOnlyProperty<Integer> {
+public class IntegerProductProperty extends AbstractReadOnlyProperty<Integer> {
 
 	private List<Property<Integer>> sumProperties = new LinkedList<>();
 	
-	public IntegerSumProperty(String name, Property<Integer>... properties) {
+	public IntegerProductProperty(String name, Property<Integer>... properties) {
 		
 		super(name);
 		
@@ -59,7 +59,7 @@ public class IntegerSumProperty extends AbstractReadOnlyProperty<Integer> {
 	@Override
 	public Integer getProperty(SecurityContext securityContext, GraphObject obj, boolean applyConverter, final org.neo4j.helpers.Predicate<GraphObject> predicate) {
 		
-		int sum = 0;
+		int product = 1;
 		
 		for (Property<Integer> prop : sumProperties) {
 			
@@ -67,11 +67,11 @@ public class IntegerSumProperty extends AbstractReadOnlyProperty<Integer> {
 			
 			if (value != null) {
 
-				sum = sum + value.intValue();
+				product = product * value.intValue();
 			}
 		}
 		
-		return sum;
+		return product;
 	}
 
 	@Override

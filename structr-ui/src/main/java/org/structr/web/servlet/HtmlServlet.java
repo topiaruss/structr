@@ -33,6 +33,8 @@ import org.structr.web.entity.File;
 import java.text.*;
 
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -55,7 +57,7 @@ import org.structr.core.graph.Tx;
 import org.structr.rest.ResourceProvider;
 import org.structr.rest.service.HttpServiceServlet;
 import org.structr.rest.service.StructrHttpServiceConfig;
-import org.structr.web.common.AsyncBuffer;
+import org.structr.web.common.StructrBuffer;
 import org.structr.web.common.RenderContext;
 import org.structr.web.common.RenderContext.EditMode;
 import org.structr.web.common.ThreadLocalMatcher;
@@ -91,7 +93,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 	// non-static fields
 	private DecimalFormat decimalFormat = new DecimalFormat("0.000000000", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 
-	private final StructrHttpServiceConfig config = new StructrHttpServiceConfig();
+	private final StructrHttpServiceConfig config     = new StructrHttpServiceConfig();
 
 	@Override
 	public StructrHttpServiceConfig getConfig() {
@@ -106,13 +108,12 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 	}
 
 	@Override
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) {
+	protected void doGet(final HttpServletRequest request, final HttpServletResponse response) {
 
 		double start = System.nanoTime();
 
-		SecurityContext securityContext;
+		final SecurityContext securityContext;
 		Authenticator authenticator;
-		App app;
 
 		try {
 
@@ -123,8 +124,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 				tx.success();
 			}
 
-			app = StructrApp.getInstance(securityContext);
-
+			final App app = StructrApp.getInstance(securityContext);
 			try (final Tx tx = app.tx()) {
 
 				// Ensure access mode is frontend
@@ -155,7 +155,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 
 				}
 
-				RenderContext renderContext = RenderContext.getInstance(request, response, getEffectiveLocale(request));
+				final RenderContext renderContext = RenderContext.getInstance(request, response, getEffectiveLocale(request));
 
 				renderContext.setResourceProvider(config.getResourceProvider());
 
@@ -317,44 +317,23 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 							response.setContentType("text/html;charset=UTF-8");
 						}
 
-						AsyncContext async = request.startAsync();
-						ServletOutputStream out = response.getOutputStream();
+						response.setBufferSize(8192);
+						try (final StructrBuffer buffer = new StructrBuffer(response.getWriter())) {
 
-						AsyncBuffer buffer = renderContext.getBuffer();
-						buffer.prepare(async, out);
-						//StructrWriteListener writeListener = new StructrWriteListener(buffer, async, out);
+							// set active buffer and start it
+							renderContext.setBuffer(buffer);
+
+							// start rendering
+							rootElement.render(securityContext, renderContext, 0);
 						
-						rootElement.render(securityContext, renderContext, 0);
-						buffer.finish();
-
-//						final DOMNode root = rootElement;
-//						new Thread() {
-//							public void run() {
-//								try {
-//									root.render(securityContext, renderContext, 0);
-//								} catch (FrameworkException ex) {
-//									Logger.getLogger(HtmlServlet.class.getName()).log(Level.SEVERE, null, ex);
-//								}
-//							}
-//						}.start();
-
-						response.setStatus(HttpServletResponse.SC_OK);
-
+						} catch (Throwable t) {
+							
+							t.printStackTrace();
+						}
+						
 						double end = System.nanoTime();
 						logger.log(Level.FINE, "Content for path {0} in {1} seconds", new Object[]{path, decimalFormat.format((end - setup) / 1000000000.0)});
 
-						// 3: finish request
-//						try {
-//
-//							out.flush();
-//							//response.flushBuffer();
-//							out.close();
-//
-//						} catch (IllegalStateException ise) {
-//
-//							logger.log(Level.WARNING, "Could not write to output stream", ise.getMessage());
-//
-//						}
 					}
 
 				} else {
@@ -817,5 +796,4 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 		return locale;
 
 	}
-
 }

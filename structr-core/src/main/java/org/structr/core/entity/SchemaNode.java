@@ -51,13 +51,14 @@ public class SchemaNode extends AbstractSchemaNode implements Schema {
 	public static final Property<List<SchemaNode>>  relatedTo    = new EndNodes<>("relatedTo", SchemaRelationship.class, new SchemaNotion(SchemaNode.class));
 	public static final Property<List<SchemaNode>>  relatedFrom  = new StartNodes<>("relatedFrom", SchemaRelationship.class, new SchemaNotion(SchemaNode.class));
 	public static final Property<String>            extendsClass = new StringProperty("extendsClass").indexed();
+	public static final Property<String>            rdfId        = new StringProperty("rdfId").indexed();
 	
 	public static final View defaultView = new View(SchemaNode.class, PropertyView.Public,
-		name, extendsClass, relatedTo, relatedFrom
+		name, extendsClass, relatedTo, relatedFrom, rdfId
 	);
 	
 	public static final View uiView = new View(SchemaNode.class, PropertyView.Ui,
-		name, extendsClass, relatedTo, relatedFrom
+		name, extendsClass, relatedTo, relatedFrom, rdfId
 	);
 
 	private Set<String> dynamicViews = new LinkedHashSet<>();
