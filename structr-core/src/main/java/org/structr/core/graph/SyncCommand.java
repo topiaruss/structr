@@ -154,7 +154,7 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 	@Override
 	public boolean requiresEnclosingTransaction() {
-		return true;
+		return false;
 	}
 
 	// ----- static methods -----
@@ -168,13 +168,15 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 	 */
 	public static void exportToFile(final GraphDatabaseService graphDb, final String fileName, final boolean includeFiles) throws FrameworkException {
 
-		try {
+		try (final Tx tx = StructrApp.getInstance().tx()) {
 
 			GlobalGraphOperations ggop = GlobalGraphOperations.at(graphDb);
 			Set<Relationship> rels     = Iterables.toSet(ggop.getAllRelationships());
 			Set<Node> nodes            = Iterables.toSet(ggop.getAllNodes());
 
 			exportToStream(new FileOutputStream(fileName), nodes, rels, null, includeFiles);
+
+			tx.success();
 
 		} catch (Throwable t) {
 
@@ -195,9 +197,11 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 	 */
 	public static void exportToFile(final String fileName, final Iterable<Node> nodes, final Iterable<Relationship> relationships, final Iterable<String> filePaths, final boolean includeFiles) throws FrameworkException {
 
-		try {
+		try (final Tx tx = StructrApp.getInstance().tx()) {
 
 			exportToStream(new FileOutputStream(fileName), nodes, relationships, filePaths, includeFiles);
+
+			tx.success();
 
 		} catch (Throwable t) {
 
