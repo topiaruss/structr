@@ -57,8 +57,6 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.tooling.GlobalGraphOperations;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.GraphObject;
@@ -168,13 +166,17 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 	 */
 	public static void exportToFile(final GraphDatabaseService graphDb, final String fileName, final boolean includeFiles) throws FrameworkException {
 
-		try (final Tx tx = StructrApp.getInstance().tx()) {
+		final App app = StructrApp.getInstance();
 
-			GlobalGraphOperations ggop = GlobalGraphOperations.at(graphDb);
-			Set<Relationship> rels     = Iterables.toSet(ggop.getAllRelationships());
-			Set<Node> nodes            = Iterables.toSet(ggop.getAllNodes());
+		try (final Tx tx = app.tx()) {
 
-			exportToStream(new FileOutputStream(fileName), nodes, rels, null, includeFiles);
+			exportToStream(
+				new FileOutputStream(fileName),
+				app.nodeQuery(NodeInterface.class).getAsList(),
+				app.relationshipQuery(RelationshipInterface.class).getAsList(),
+				null,
+				includeFiles
+			);
 
 			tx.success();
 
@@ -195,7 +197,7 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 	 * @param includeFiles
 	 * @throws FrameworkException
 	 */
-	public static void exportToFile(final String fileName, final Iterable<Node> nodes, final Iterable<Relationship> relationships, final Iterable<String> filePaths, final boolean includeFiles) throws FrameworkException {
+	public static void exportToFile(final String fileName, final Iterable<? extends NodeInterface> nodes, final Iterable<? extends RelationshipInterface> relationships, final Iterable<String> filePaths, final boolean includeFiles) throws FrameworkException {
 
 		try (final Tx tx = StructrApp.getInstance().tx()) {
 
@@ -219,7 +221,7 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 	 * @param includeFiles
 	 * @throws FrameworkException
 	 */
-	public static void exportToStream(final OutputStream outputStream, final Iterable<Node> nodes, final Iterable<Relationship> relationships, final Iterable<String> filePaths, final boolean includeFiles) throws FrameworkException {
+	public static void exportToStream(final OutputStream outputStream, final Iterable<? extends NodeInterface> nodes, final Iterable<? extends RelationshipInterface> relationships, final Iterable<String> filePaths, final boolean includeFiles) throws FrameworkException {
 
 		try {
 
@@ -500,7 +502,7 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 	}
 
-	private static void exportDatabase(ZipOutputStream zos, PrintWriter writer, Iterable<Node> nodes, Iterable<Relationship> relationships) throws IOException, FrameworkException {
+	private static void exportDatabase(final ZipOutputStream zos, final PrintWriter writer,  final Iterable<? extends NodeInterface> nodes, final Iterable<? extends RelationshipInterface> relationships) throws IOException, FrameworkException {
 
 		// start database zip entry
 		final ZipEntry dbEntry        = new ZipEntry(STRUCTR_ZIP_DB_NAME);
@@ -510,7 +512,11 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 		zos.putNextEntry(dbEntry);
 
-		for (Node node : nodes) {
+		for (NodeInterface nodeObject : nodes) {
+
+			final Node node = nodeObject.getNode();
+
+			System.out.println(node.getId() + ": " + (node.hasProperty("id") ? node.getProperty("id") : "null"));
 
 			System.out.println(node.getId() + ": " + (node.hasProperty("id") ? node.getProperty("id") : "null"));
 
@@ -534,7 +540,9 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 		writer.flush();
 
-		for (Relationship rel : relationships) {
+		for (RelationshipInterface relObject : relationships) {
+
+			final Relationship rel = relObject.getRelationship();
 
 			// ignore non-structr nodes
 			if (rel.hasProperty(GraphObject.id.dbName())) {
@@ -617,15 +625,17 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 	private static void importDatabase(final GraphDatabaseService graphDb, final SecurityContext securityContext, final ZipInputStream zis, boolean doValidation) throws FrameworkException {
 
-		final App app                    = StructrApp.getInstance();
-		final String uuidPropertyName    = GraphObject.id.dbName();
-		double t0                        = System.nanoTime();
-		Map<String, Node> uuidMap       = new LinkedHashMap<>();
-		PropertyContainer currentObject = null;
-		String currentKey               = null;
-		boolean finished                = false;
-		long totalNodeCount             = 0;
-		long totalRelCount              = 0;
+		final App app                        = StructrApp.getInstance();
+		final RelationshipFactory relFactory = new RelationshipFactory(securityContext);
+		final NodeFactory nodeFactory        = new NodeFactory(securityContext);
+		final String uuidPropertyName        = GraphObject.id.dbName();
+		double t0                            = System.nanoTime();
+		Map<String, Node> uuidMap            = new LinkedHashMap<>();
+		PropertyContainer currentObject      = null;
+		String currentKey                    = null;
+		boolean finished                     = false;
+		long totalNodeCount                  = 0;
+		long totalRelCount                   = 0;
 
 		try (final BufferedReader reader = new BufferedReader(new InputStreamReader(zis))) {
 
@@ -735,10 +745,6 @@ public class SyncCommand extends NodeServiceCommand implements MaintenanceComman
 
 					totalNodeCount += nodeCount;
 					totalRelCount  += relCount;
-
-					// make nodes visible in transaction context
-					RelationshipFactory relFactory     = new RelationshipFactory(securityContext);
-					NodeFactory nodeFactory            = new NodeFactory(securityContext);
 
 					for (Node node : nodes) {
 
