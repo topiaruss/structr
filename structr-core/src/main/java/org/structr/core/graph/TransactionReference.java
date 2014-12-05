@@ -109,4 +109,9 @@ public class TransactionReference implements Transaction {
 	public Lock acquireReadLock(PropertyContainer entity) {
 		return tx.acquireReadLock(entity);
 	}
+
+	@Override
+	public void terminate() {
+		tx.terminate();
+	}
 }
