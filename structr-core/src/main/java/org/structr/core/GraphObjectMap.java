@@ -25,6 +25,8 @@ import org.structr.core.property.PropertyMap;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.ErrorBuffer;
 import org.structr.common.error.FrameworkException;
+import org.structr.core.graph.NodeInterface;
+import org.structr.core.graph.RelationshipInterface;
 import org.structr.schema.SchemaHelper;
 import org.structr.schema.action.ActionContext;
 
@@ -230,5 +232,35 @@ public class GraphObjectMap extends PropertyMap implements GraphObject {
 		}
 
 		return null;
+	}
+
+	// ----- Cloud synchronization and replication -----
+	@Override
+	public List<GraphObject> getSyncData() {
+		return Collections.EMPTY_LIST;
+	}
+
+	@Override
+	public boolean isNode() {
+		return false;
+	}
+
+	@Override
+	public boolean isRelationship() {
+		return false;
+	}
+
+	@Override
+	public NodeInterface getSyncNode() {
+		return null;
+	}
+
+	@Override
+	public RelationshipInterface getSyncRelationship() {
+		return null;
+	}
+
+	@Override
+	public void updateFromPropertyMap(final Map<String, Object> properties) throws FrameworkException {
 	}
 }

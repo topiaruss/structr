@@ -19,12 +19,16 @@
 package org.structr.core;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import org.neo4j.graphdb.PropertyContainer;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.ErrorBuffer;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.entity.AbstractNode;
 import org.structr.core.entity.AbstractRelationship;
+import org.structr.core.graph.NodeInterface;
+import org.structr.core.graph.RelationshipInterface;
 import org.structr.core.property.BooleanProperty;
 import org.structr.core.property.ISO8601DateProperty;
 import org.structr.core.property.Property;
@@ -290,4 +294,15 @@ public interface GraphObject {
 	public String replaceVariables(final SecurityContext securityContext, final ActionContext actionContext, final Object rawValue) throws FrameworkException;
 	public Object evaluate(final SecurityContext securityContext, final String key, final String defaultValue) throws FrameworkException;
 
+
+	// ----- Cloud synchronization and replication -----
+	public List<GraphObject> getSyncData();
+
+	public boolean isNode();
+	public boolean isRelationship();
+
+	public NodeInterface getSyncNode();
+	public RelationshipInterface getSyncRelationship();
+
+	public void updateFromPropertyMap(final Map<String, Object> properties) throws FrameworkException;
 }
