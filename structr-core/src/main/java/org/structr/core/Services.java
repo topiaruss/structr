@@ -342,10 +342,10 @@ public class Services {
 	public void shutdown() {
 
 		initializationDone = false;
-
 		if (!shutdownDone) {
-			
+
 			System.out.println("INFO: Shutting down...");
+
 			for (Service service : serviceCache.values()) {
 
 				try {
@@ -377,7 +377,7 @@ public class Services {
 
 			System.out.println("INFO: Shutdown complete");
 
-			// signal shutdown is complete
+			// signal to other shutdown hooks that the system is already shut down
 			shutdownDone = true;
 		}
 
