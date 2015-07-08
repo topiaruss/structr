@@ -27,7 +27,7 @@ import org.structr.common.error.FrameworkException;
 import java.util.*;
 import java.util.logging.Logger;
 import org.neo4j.gis.spatial.indexprovider.SpatialRecordHits;
-import org.neo4j.graphdb.index.IndexHits;
+import org.neo4j.graphdb.ResourceIterable;
 import org.structr.common.AccessControllable;
 import org.structr.core.Result;
 import org.structr.core.app.StructrApp;
@@ -110,7 +110,7 @@ public class NodeFactory<T extends NodeInterface & AccessControllable> extends F
 	}
 
 	@Override
-	public Result instantiate(final IndexHits<Node> input) throws FrameworkException {
+	public Result instantiate(final ResourceIterable<Node> input) throws FrameworkException {
 
 		if (input != null && input instanceof SpatialRecordHits) {
 			return resultFromSpatialRecords((SpatialRecordHits) input);

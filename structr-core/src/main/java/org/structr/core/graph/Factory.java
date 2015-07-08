@@ -22,8 +22,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.function.Function;
+import org.neo4j.graphdb.ResourceIterable;
 import org.structr.common.FactoryDefinition;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
@@ -113,22 +113,18 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 	 * @return result
 	 * @throws org.structr.common.error.FrameworkException
 	 */
-	public Result instantiate(final IndexHits<S> input) throws FrameworkException {
+	public Result<T> instantiate(final ResourceIterable<S> input) throws FrameworkException {
 
 
 		if (input != null) {
 
-			try (final IndexHits<S> closeable = input) {
+			if (factoryProfile.getOffsetId() != null) {
 
-				if (factoryProfile.getOffsetId() != null) {
+				return resultWithOffsetId(input);
 
-					return resultWithOffsetId(closeable);
+			} else {
 
-				} else {
-
-					return resultWithoutOffsetId(closeable);
-				}
-
+				return resultWithoutOffsetId(input);
 			}
 		}
 
@@ -200,10 +196,9 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 	}
 
-	protected Result resultWithOffsetId(final IndexHits<S> input) throws FrameworkException {
+	protected Result resultWithOffsetId(final ResourceIterable<S> input) throws FrameworkException {
 
-		int size                 = input.size();
-		final int pageSize       = Math.min(size, factoryProfile.getPageSize());
+		final int pageSize       = factoryProfile.getPageSize();
 		final int page           = factoryProfile.getPage();
 		final String offsetId    = factoryProfile.getOffsetId();
 		List<T> elements         = new LinkedList<>();
@@ -211,107 +206,103 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		int count                = 0;
 		int offset               = 0;
 
-		try (final IndexHits<S> closeable = input) {
+		// We have an offsetId, so first we need to
+		// find the node with this uuid to get the offset
+		List<T> nodesUpToOffset = new LinkedList();
+		int i                   = 0;
+		boolean gotOffset       = false;
 
-			// We have an offsetId, so first we need to
-			// find the node with this uuid to get the offset
-			List<T> nodesUpToOffset = new LinkedList();
-			int i                   = 0;
-			boolean gotOffset        = false;
+		for (S node : input) {
 
-			for (S node : closeable) {
+			T n = instantiate(node);
 
-				T n = instantiate(node);
+			if (n == null) {
 
-				if (n == null) {
+				continue;
+
+			}
+
+			nodesUpToOffset.add(n);
+
+			if (!gotOffset) {
+
+				if (!offsetId.equals(n.getUuid())) {
+
+					i++;
 
 					continue;
 
 				}
 
-				nodesUpToOffset.add(n);
+				gotOffset = true;
+				offset    = page > 0
+					    ? i
+					    : i + (page * pageSize);
 
-				if (!gotOffset) {
+				break;
 
-					if (!offsetId.equals(n.getUuid())) {
+			}
 
-						i++;
+		}
 
-						continue;
+		if (!nodesUpToOffset.isEmpty() && !gotOffset) {
 
+			throw new FrameworkException("offsetId", new IdNotFoundToken(offsetId));
+		}
+
+		if (offset < 0) {
+
+			// Remove last item
+			nodesUpToOffset.remove(nodesUpToOffset.size()-1);
+
+			return new Result(nodesUpToOffset, i, true, false);
+		}
+
+		for (T node : nodesUpToOffset) {
+
+			if (node != null) {
+
+				if (++position > offset) {
+
+					// stop if we got enough nodes
+					if (++count > pageSize) {
+
+						return new Result(elements, count, true, false);
 					}
 
-					gotOffset = true;
-					offset    = page > 0
-						    ? i
-						    : i + (page * pageSize);
-
-					break;
-
+					elements.add(node);
 				}
 
 			}
 
-			if (!nodesUpToOffset.isEmpty() && !gotOffset) {
+		}
 
-				throw new FrameworkException("offsetId", new IdNotFoundToken(offsetId));
-			}
+		// If we get here, the result was not complete, so we need to iterate
+		// through the index result (input) to get more items.
+		for (S node : input) {
 
-			if (offset < 0) {
+			T n = instantiate(node);
+			if (n != null) {
 
-				// Remove last item
-				nodesUpToOffset.remove(nodesUpToOffset.size()-1);
+				if (++position > offset) {
 
-				return new Result(nodesUpToOffset, size, true, false);
-			}
+					// stop if we got enough nodes
+					if (++count > pageSize) {
 
-			for (T node : nodesUpToOffset) {
-
-				if (node != null) {
-
-					if (++position > offset) {
-
-						// stop if we got enough nodes
-						if (++count > pageSize) {
-
-							return new Result(elements, size, true, false);
-						}
-
-						elements.add(node);
+						return new Result(elements, count, true, false);
 					}
 
-				}
-
-			}
-
-			// If we get here, the result was not complete, so we need to iterate
-			// through the index result (input) to get more items.
-			for (S node : closeable) {
-
-				T n = instantiate(node);
-				if (n != null) {
-
-					if (++position > offset) {
-
-						// stop if we got enough nodes
-						if (++count > pageSize) {
-
-							return new Result(elements, size, true, false);
-						}
-
-						elements.add(n);
-					}
-
+					elements.add(n);
 				}
 
 			}
 		}
 
-		return new Result(elements, size, true, false);
+		return new Result(elements, count, true, false);
 
 	}
 
-	protected Result resultWithoutOffsetId(final IndexHits<S> input) throws FrameworkException {
+	protected Result resultWithoutOffsetId(final ResourceIterable<S> input) throws FrameworkException {
 
 		final int pageSize = factoryProfile.getPageSize();
 		final int page     = factoryProfile.getPage();
@@ -344,7 +335,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 	}
 
-	protected Result page(final IndexHits<S> input, final int offset, final int pageSize) throws FrameworkException {
+	protected Result page(final ResourceIterable<S> input, final int offset, final int pageSize) throws FrameworkException {
 
 		final List<T> nodes = new LinkedList<>();
 		int position	    = 0;
@@ -352,34 +343,31 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		int overallCount    = 0;
 		boolean pageFull    = false;
 
-		try (final IndexHits<S> closeable = input) {
+		for (S s : input) {
 
-			for (S s : closeable) {
+			T node = instantiate(s);
 
-				T node = instantiate(s);
+			if (node != null) {
 
-				if (node != null) {
+				overallCount++;
 
-					overallCount++;
+				if (++position > offset) {
 
-					if (++position > offset) {
+					if (++count > pageSize) {
 
-						if (++count > pageSize) {
-
-							pageFull = true;
-
-						}
-
-						if (!pageFull) {
-
-							nodes.add(node);
-
-						}
+						pageFull = true;
 
 					}
-				}
 
+					if (!pageFull) {
+
+						nodes.add(node);
+
+					}
+
+				}
 			}
+
 		}
 
 		return new Result(nodes, overallCount, true, false);
