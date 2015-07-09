@@ -41,6 +41,11 @@ public class EmptySearchAttribute<T> extends PropertySearchAttribute<T> {
 	}
 
 	@Override
+	public boolean canUseCypher() {
+		return false;
+	}
+
+	@Override
 	public Query getQuery() {
 		return null;
 	}

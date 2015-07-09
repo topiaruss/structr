@@ -29,6 +29,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.WildcardQuery;
 import org.structr.core.GraphObject;
 import org.structr.core.property.AbstractPrimitiveProperty;
+import org.structr.core.property.ArrayProperty;
 import org.structr.core.property.PropertyKey;
 
 /**
@@ -52,6 +53,44 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 	@Override
 	public String toString() {
 		return "PropertySearchAttribute(" + super.toString() + ")";
+	}
+
+	@Override
+	public boolean canUseCypher() {
+		return !GraphObject.id.equals(getKey()) && !getKey().isPassivelyIndexed();
+	}
+
+	@Override
+	public boolean hasCypherConditions() {
+		return true;
+	}
+
+	@Override
+	public String getCypherQuery(final boolean first) {
+
+		final StringBuilder buf = new StringBuilder();
+
+		appendOccur(buf, first);
+
+		if (getKey() instanceof ArrayProperty) {
+
+			buf.append(" ANY (x IN n.");
+			buf.append(getKey().dbName());
+			buf.append(" WHERE x = '");
+			buf.append(getStringValue());
+			buf.append("')");
+
+		} else {
+
+			buf.append(" n.");
+			buf.append(getKey().dbName());
+			buf.append(" = '");
+			buf.append(getStringValue());
+			buf.append("'");
+
+		}
+
+		return buf.toString();
 	}
 
 	@Override
@@ -169,7 +208,7 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 			if (nodeValue != null) {
 
 				if (!isExactMatch) {
-					
+
 					if (nodeValue instanceof String && searchValue instanceof String) {
 
 						String n = (String) nodeValue;
@@ -178,9 +217,9 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 						return StringUtils.containsIgnoreCase(n, s);
 
 					}
-					
+
 				}
-				
+
 				if (compare(nodeValue, searchValue) != 0) {
 					return false;
 				}

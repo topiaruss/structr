@@ -87,6 +87,60 @@ public class SearchAttributeGroup extends SearchAttribute {
 	}
 
 	@Override
+	public boolean hasCypherConditions() {
+
+		boolean hasConditions = true;
+
+		for (SearchAttribute attr : getSearchAttributes()) {
+			hasConditions &= attr.hasCypherConditions();
+		}
+
+		return hasConditions;
+	}
+
+	@Override
+	public boolean canUseCypher() {
+
+		boolean canUseCypher = true;
+
+		for (SearchAttribute attr : getSearchAttributes()) {
+			canUseCypher &= attr.canUseCypher();
+		}
+
+		return canUseCypher;
+	}
+
+	@Override
+	public String getCypherQuery(final boolean first) {
+
+		final StringBuilder buf = new StringBuilder();
+		final boolean multiple  = getSearchAttributes().size() > 1;
+		boolean firstElement    = true;
+
+		appendOccur(buf, first);
+
+		if (multiple) {
+			buf.append(" (");
+		}
+
+		for (SearchAttribute attr : getSearchAttributes()) {
+
+			final String subQuery = attr.getCypherQuery(firstElement);
+			if (subQuery != null) {
+
+				buf.append(subQuery);
+				firstElement = false;
+			}
+		}
+
+		if (multiple) {
+			buf.append(" )");
+		}
+
+		return buf.toString();
+	}
+
+	@Override
 	public Query getQuery() {
 
 		BooleanQuery query = new BooleanQuery();

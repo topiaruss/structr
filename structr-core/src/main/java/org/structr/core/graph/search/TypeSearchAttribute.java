@@ -45,6 +45,19 @@ public class TypeSearchAttribute<S extends GraphObject> extends PropertySearchAt
 	}
 
 	@Override
+	public String getCypherQuery(final boolean first) {
+
+		final StringBuilder buf = new StringBuilder();
+
+		appendOccur(buf, first);
+
+		buf.append(" n:");
+		buf.append(getStringValue());
+
+		return buf.toString();
+	}
+
+	@Override
 	public Query getQuery() {
 
 		String value = getStringValue();

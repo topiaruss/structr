@@ -40,6 +40,9 @@ public abstract class SearchAttribute<T> extends NodeAttribute<T> implements Pre
 	private Set<GraphObject> result = new LinkedHashSet<>();
 	private Occur occur             = null;
 
+	public abstract boolean hasCypherConditions();
+	public abstract boolean canUseCypher();
+	public abstract String getCypherQuery(final boolean first);
 	public abstract Query getQuery();
 	public abstract boolean isExactMatch();
 	public abstract boolean includeInResult(GraphObject entity);
@@ -50,21 +53,21 @@ public abstract class SearchAttribute<T> extends NodeAttribute<T> implements Pre
 	public SearchAttribute() {
 		this(null, null);
 	}
-	
+
 	public SearchAttribute(Occur occur) {
 		this(occur, null, null);
 	}
-	
+
 	public SearchAttribute(PropertyKey<T> key, T value) {
 		this(null, key, value);
 	}
-	
+
 	public SearchAttribute(Occur occur, PropertyKey<T> key, T value) {
-		
+
 		super(key, value);
 		this.occur = occur;
 	}
-	
+
 	public Occur getOccur() {
 		return occur;
 	}
@@ -86,10 +89,24 @@ public abstract class SearchAttribute<T> extends NodeAttribute<T> implements Pre
 	}
 
 	public void setExactMatch(final boolean exact) {};
-	
+
 	// ----- interface Predicate<Node> -----
 	@Override
 	public boolean accept(final GraphObject obj) {
 		return includeInResult(obj);
+	}
+
+	// ----- protected methods -----
+	protected void appendOccur(final StringBuilder buf, final boolean first) {
+
+		if (!first) {
+
+			switch (getOccur()) {
+
+				case MUST:     buf.append(" AND"); break;
+				case MUST_NOT: buf.append(" AND NOT"); break;
+				case SHOULD:   buf.append(" OR"); break;
+			}
+		}
 	}
 }

@@ -59,6 +59,50 @@ public class RangeSearchAttribute<T> extends SearchAttribute<T> {
 	}
 
 	@Override
+	public boolean hasCypherConditions() {
+		return true;
+	}
+
+	@Override
+	public boolean canUseCypher() {
+		return !getKey().isPassivelyIndexed();
+	}
+
+	@Override
+	public String getCypherQuery(final boolean first) {
+
+		if (rangeStart == null && rangeEnd == null) {
+			return null;
+		}
+
+		final StringBuilder buf = new StringBuilder();
+
+		buf.append("(");
+
+		if (rangeStart != null) {
+
+			buf.append("n.").append(searchKey.dbName());
+			buf.append(" >= ");
+			buf.append(getValue(rangeStart));
+		}
+
+		if (rangeEnd != null) {
+
+			if (rangeStart != null) {
+				buf.append(" AND");
+			}
+
+			buf.append("n.").append(searchKey.dbName());
+			buf.append(" <= ");
+			buf.append(getValue(rangeEnd));
+		}
+
+		buf.append(")");
+
+		return buf.toString();
+	}
+
+	@Override
 	public Query getQuery() {
 
 		Query q;
@@ -149,5 +193,15 @@ public class RangeSearchAttribute<T> extends SearchAttribute<T> {
 
 	public T getRangeEnd() {
 		return rangeEnd;
+	}
+
+	// ----- private methods -----
+	private Object getValue(final Object source) {
+
+		if (source instanceof Date) {
+			return ((Date)source).getTime();
+		}
+
+		return source.toString();
 	}
 }

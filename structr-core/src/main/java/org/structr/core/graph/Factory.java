@@ -178,6 +178,14 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		return adapt(from);
 	}
 
+	public void setPage(final int page) {
+		factoryProfile.setPage(page);
+	}
+
+	public void setPageSize(final int pageSize) {
+		factoryProfile.setPageSize(pageSize);
+	}
+
 	protected Class<T> getClassForName(final String rawType) {
 		return SchemaHelper.getEntityClassForRawType(rawType);
 	}

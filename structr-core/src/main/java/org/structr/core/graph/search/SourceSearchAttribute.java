@@ -38,6 +38,21 @@ public class SourceSearchAttribute<T> extends SearchAttribute<T> {
 	}
 
 	@Override
+	public boolean hasCypherConditions() {
+		return false;
+	}
+
+	@Override
+	public boolean canUseCypher() {
+		return false;
+	}
+
+	@Override
+	public String getCypherQuery(final boolean first) {
+		return null;
+	}
+
+	@Override
 	public Query getQuery() {
 		return null;
 	}

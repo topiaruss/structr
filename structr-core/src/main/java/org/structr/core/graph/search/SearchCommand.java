@@ -36,10 +36,13 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.neo4j.gis.spatial.indexprovider.LayerNodeIndex;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.PropertyContainer;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.helpers.Predicate;
+import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.index.lucene.QueryContext;
 import org.structr.common.GraphObjectComparator;
 import org.structr.common.PagingHelper;
@@ -132,6 +135,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	public abstract Index<S> getFulltextIndex();
 	public abstract Index<S> getKeywordIndex();
 	public abstract LayerNodeIndex getSpatialIndex();
+	public abstract boolean useCypherIfPossible();
 
 	private Result<T> doSearch() throws FrameworkException {
 
@@ -140,228 +144,276 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 			return Result.EMPTY_RESULT;
 		}
 
-		Factory<S, T> factory        = getFactory(securityContext, includeDeletedAndHidden, publicOnly, pageSize, page, offsetId);
-		boolean filterResults        = true;
-		boolean hasGraphSources      = false;
-		boolean hasSpatialSource     = false;
+		final Factory<S, T> factory = getFactory(securityContext, includeDeletedAndHidden, publicOnly, pageSize, page, offsetId);
+		final boolean anonymous     = securityContext.getUser(false) == null;
+		final boolean superUser     = securityContext.isSuperUser();
 
-		if (securityContext.getUser(false) == null) {
+		// optimization: use cypher when possible
+		if (useCypherIfPossible() && offsetId == null && exactSearch && rootGroup.canUseCypher() && (sortKey == null || !sortKey.isPassivelyIndexed())) {
 
-			rootGroup.add(new PropertySearchAttribute(GraphObject.visibleToPublicUsers, true, BooleanClause.Occur.MUST, true));
+			final StringBuilder queryBuffer = new StringBuilder();
 
-		}
+			queryBuffer.append("MATCH (n)");
+			queryBuffer.append(rootGroup.hasCypherConditions() ? " WHERE" : "");
+			queryBuffer.append(rootGroup.getCypherQuery(true));
 
-		// At this point, all search attributes are ready
-		List<SourceSearchAttribute> sources    = new ArrayList<>();
-		DistanceSearchAttribute distanceSearch = null;
-		boolean hasEmptySearchFields           = false;
-		Result intermediateResult              = null;
-		GeoCodingResult coords                 = null;
-		Double dist                            = null;
-
-		// check for optional-only queries
-		// (some query types seem to allow no MUST occurs)
-		for (Iterator<SearchAttribute> it = rootGroup.getSearchAttributes().iterator(); it.hasNext();) {
-
-			SearchAttribute attr = it.next();
-
-			if (attr instanceof SearchAttributeGroup) {
-
-				// fixme: this needs to be done recursively, but how?
-				for (final Iterator<SearchAttribute> groupIterator = ((SearchAttributeGroup)attr).getSearchAttributes().iterator(); groupIterator.hasNext();) {
-
-					final SearchAttribute item = groupIterator.next();
-					if (item instanceof SourceSearchAttribute) {
-
-						sources.add((SourceSearchAttribute)item);
-
-						// remove attribute from filter list
-						groupIterator.remove();
-
-						hasGraphSources = true;
-
-					}
-
-					if (item instanceof EmptySearchAttribute) {
-						hasEmptySearchFields = true;
-					}
-				}
+			if (anonymous) {
+				queryBuffer.append(" AND n.visibleToPublicUsers = true");
 			}
 
-			// check for distance search and initialize
-			if (attr instanceof DistanceSearchAttribute) {
+			queryBuffer.append(" RETURN n");
 
-				distanceSearch = (DistanceSearchAttribute) attr;
-				coords         = GeoHelper.geocode(distanceSearch);
-				dist           = distanceSearch.getValue();
+			if (sortKey != null) {
 
-				// remove attribute from filter list
-				it.remove();
-
-				hasSpatialSource = true;
+				queryBuffer.append(" ORDER BY n.").append(sortKey.dbName());
+				queryBuffer.append(sortDescending ? " DESC" : "");
 			}
+//
+//			// special handling: use Cypher SKIP and LIMIT
+//			if ((anonymous || superUser) && pageSize < Integer.MAX_VALUE) {
+//				queryBuffer.append(" SKIP ").append(pageSize * (page - 1));
+//				queryBuffer.append(" LIMIT ").append(pageSize);
+//
+//				factory.setPage(1);
+//			}
 
-			// store source attributes for later use
-			if (attr instanceof SourceSearchAttribute) {
+			System.out.println("Using Cypher: " + queryBuffer.toString());
 
-				sources.add((SourceSearchAttribute)attr);
+			final GraphDatabaseService graphDb = (GraphDatabaseService)getArgument("graphDb");
+			final org.neo4j.graphdb.Result result = graphDb.execute(queryBuffer.toString());
 
-				// remove attribute from filter list
-				it.remove();
-
-				hasGraphSources = true;
+			// cypher query will return "n"
+			try (final ResourceIterator it = result.columnAs("n")) {
+				return factory.instantiate(Iterables.asResourceIterable(it));
 			}
-
-			if (attr instanceof EmptySearchAttribute) {
-				hasEmptySearchFields = true;
-			}
-		}
-
-		// only do "normal" query if no other sources are present
-		// use filters to filter sources otherwise
-		if (distanceSearch == null && !sources.isEmpty()) {
-
-			intermediateResult = new Result(new ArrayList<AbstractNode>(), null, false, false);
 
 		} else {
 
-			BooleanQuery query    = new BooleanQuery();
-			boolean allExactMatch = true;
+			boolean filterResults        = true;
+			boolean hasGraphSources      = false;
+			boolean hasSpatialSource     = false;
 
-			// build query
-			for (SearchAttribute attr : rootGroup.getSearchAttributes()) {
+			if (anonymous) {
 
-				Query queryElement = attr.getQuery();
-				if (queryElement != null) {
-
-					query.add(queryElement, attr.getOccur());
-				}
-
-				allExactMatch &= attr.isExactMatch();
-			}
-
-			QueryContext queryContext = new QueryContext(query);
-
-			if (sortKey != null && !doNotSort) {
-
-				Integer sortType = sortKey.getSortType();
-				if (sortType != null) {
-
-					queryContext.sort(new Sort(new SortField(sortKey.dbName(), sortType, sortDescending)));
-
-				} else {
-
-					queryContext.sort(new Sort(new SortField(sortKey.dbName(), Locale.getDefault(), sortDescending)));
-				}
+				rootGroup.add(new PropertySearchAttribute(GraphObject.visibleToPublicUsers, true, BooleanClause.Occur.MUST, true));
 
 			}
 
-			if (distanceSearch != null) {
+			System.out.println("NOT using Cypher");
 
-				if (coords != null) {
+			// At this point, all search attributes are ready
+			List<SourceSearchAttribute> sources    = new ArrayList<>();
+			DistanceSearchAttribute distanceSearch = null;
+			boolean hasEmptySearchFields           = false;
+			Result intermediateResult              = null;
+			GeoCodingResult coords                 = null;
+			Double dist                            = null;
 
-					Map<String, Object> params = new HashMap<>();
+			// check for optional-only queries
+			// (some query types seem to allow no MUST occurs)
+			for (Iterator<SearchAttribute> it = rootGroup.getSearchAttributes().iterator(); it.hasNext();) {
 
-					params.put(LayerNodeIndex.POINT_PARAMETER, coords.toArray());
-					params.put(LayerNodeIndex.DISTANCE_IN_KM_PARAMETER, dist);
+				SearchAttribute attr = it.next();
 
-					LayerNodeIndex spatialIndex = this.getSpatialIndex();
-					if (spatialIndex != null) {
+				if (attr instanceof SearchAttributeGroup) {
 
-						try (final IndexHits hits = spatialIndex.query(LayerNodeIndex.WITHIN_DISTANCE_QUERY, params)) {
+					// fixme: this needs to be done recursively, but how?
+					for (final Iterator<SearchAttribute> groupIterator = ((SearchAttributeGroup)attr).getSearchAttributes().iterator(); groupIterator.hasNext();) {
 
-							// instantiate spatial search results without paging,
-							// as the results must be filtered by type anyway
-							intermediateResult = new NodeFactory(securityContext).instantiate(hits);
+						final SearchAttribute item = groupIterator.next();
+						if (item instanceof SourceSearchAttribute) {
 
+							sources.add((SourceSearchAttribute)item);
+
+							// remove attribute from filter list
+							groupIterator.remove();
+
+							hasGraphSources = true;
+
+						}
+
+						if (item instanceof EmptySearchAttribute) {
+							hasEmptySearchFields = true;
 						}
 					}
 				}
 
-			} else if (allExactMatch) {
+				// check for distance search and initialize
+				if (attr instanceof DistanceSearchAttribute) {
 
-//				try (final IndexHits hits = synchronizedLuceneQuery(getKeywordIndex(), queryContext)) {
-				try (final IndexHits hits = getKeywordIndex().query(queryContext)) {
+					distanceSearch = (DistanceSearchAttribute) attr;
+					coords         = GeoHelper.geocode(distanceSearch);
+					dist           = distanceSearch.getValue();
 
-					filterResults      = hasEmptySearchFields;
-					intermediateResult = factory.instantiate(hits);
+					// remove attribute from filter list
+					it.remove();
 
-				} catch (NumberFormatException nfe) {
-
-					logger.log(Level.SEVERE, "Could not sort results", nfe);
+					hasSpatialSource = true;
 				}
+
+				// store source attributes for later use
+				if (attr instanceof SourceSearchAttribute) {
+
+					sources.add((SourceSearchAttribute)attr);
+
+					// remove attribute from filter list
+					it.remove();
+
+					hasGraphSources = true;
+				}
+
+				if (attr instanceof EmptySearchAttribute) {
+					hasEmptySearchFields = true;
+				}
+			}
+
+			// only do "normal" query if no other sources are present
+			// use filters to filter sources otherwise
+			if (distanceSearch == null && !sources.isEmpty()) {
+
+				intermediateResult = new Result(new ArrayList<AbstractNode>(), null, false, false);
 
 			} else {
 
-				// Default: Mixed or fulltext-only search: Use fulltext index
-				try (final IndexHits hits = getFulltextIndex().query(queryContext)) {
+				BooleanQuery query    = new BooleanQuery();
+				boolean allExactMatch = true;
 
-					filterResults      = hasEmptySearchFields;
-					intermediateResult = factory.instantiate(hits);
+				// build query
+				for (SearchAttribute attr : rootGroup.getSearchAttributes()) {
 
-				} catch (NumberFormatException nfe) {
+					Query queryElement = attr.getQuery();
+					if (queryElement != null) {
 
-					logger.log(Level.SEVERE, "Could not sort results", nfe);
+						query.add(queryElement, attr.getOccur());
+					}
+
+					allExactMatch &= attr.isExactMatch();
 				}
-			}
-		}
 
-		if (intermediateResult != null && filterResults) {
+				QueryContext queryContext = new QueryContext(query);
 
-			// sorted result set
-			Set<GraphObject> intermediateResultSet = new LinkedHashSet<>(intermediateResult.getResults());
-			List<GraphObject> finalResult          = new ArrayList<>();
-			int resultCount                        = 0;
+				if (sortKey != null && !doNotSort) {
 
-			// We need to find out whether there was a source for any of the possible sets that we want to merge.
-			// If there was only a single source, the final result is the result of that source. If there are
-			// multiple sources, the result is the intersection of all the sources, depending on the occur flag.
+					Integer sortType = sortKey.getSortType();
+					if (sortType != null) {
 
-			if (hasGraphSources) {
+						queryContext.sort(new Sort(new SortField(sortKey.dbName(), sortType, sortDescending)));
 
-				// merge sources according to their occur flag
-				final Set<GraphObject> mergedSources = mergeSources(sources);
+					} else {
 
-				if (hasSpatialSource) {
+						queryContext.sort(new Sort(new SortField(sortKey.dbName(), Locale.getDefault(), sortDescending)));
+					}
 
-					// CHM 2014-02-24: preserve sorting of intermediate result, might be sorted by distance which we cannot reproduce easily
-					intermediateResultSet.retainAll(mergedSources);
+				}
+
+				if (distanceSearch != null) {
+
+					if (coords != null) {
+
+						Map<String, Object> params = new HashMap<>();
+
+						params.put(LayerNodeIndex.POINT_PARAMETER, coords.toArray());
+						params.put(LayerNodeIndex.DISTANCE_IN_KM_PARAMETER, dist);
+
+						LayerNodeIndex spatialIndex = this.getSpatialIndex();
+						if (spatialIndex != null) {
+
+							try (final IndexHits hits = spatialIndex.query(LayerNodeIndex.WITHIN_DISTANCE_QUERY, params)) {
+
+								// instantiate spatial search results without paging,
+								// as the results must be filtered by type anyway
+								intermediateResult = new NodeFactory(securityContext).instantiate(hits);
+
+							}
+						}
+					}
+
+				} else if (allExactMatch) {
+
+	//				try (final IndexHits hits = synchronizedLuceneQuery(getKeywordIndex(), queryContext)) {
+					try (final IndexHits hits = getKeywordIndex().query(queryContext)) {
+
+						filterResults      = hasEmptySearchFields;
+						intermediateResult = factory.instantiate(hits);
+
+					} catch (NumberFormatException nfe) {
+
+						logger.log(Level.SEVERE, "Could not sort results", nfe);
+					}
 
 				} else {
 
-					intermediateResultSet.addAll(mergedSources);
+					// Default: Mixed or fulltext-only search: Use fulltext index
+					try (final IndexHits hits = getFulltextIndex().query(queryContext)) {
+
+						filterResults      = hasEmptySearchFields;
+						intermediateResult = factory.instantiate(hits);
+
+					} catch (NumberFormatException nfe) {
+
+						logger.log(Level.SEVERE, "Could not sort results", nfe);
+					}
 				}
 			}
 
-			// Filter intermediate result
-			for (GraphObject obj : intermediateResultSet) {
+			if (intermediateResult != null && filterResults) {
 
-				boolean addToResult = true;
+				// sorted result set
+				Set<GraphObject> intermediateResultSet = new LinkedHashSet<>(intermediateResult.getResults());
+				List<GraphObject> finalResult          = new ArrayList<>();
+				int resultCount                        = 0;
 
-				// check all attributes before adding a node
-				for (SearchAttribute attr : rootGroup.getSearchAttributes()) {
+				// We need to find out whether there was a source for any of the possible sets that we want to merge.
+				// If there was only a single source, the final result is the result of that source. If there are
+				// multiple sources, the result is the intersection of all the sources, depending on the occur flag.
 
-					// check all search attributes
-					addToResult &= attr.includeInResult(obj);
+				if (hasGraphSources) {
+
+					// merge sources according to their occur flag
+					final Set<GraphObject> mergedSources = mergeSources(sources);
+
+					if (hasSpatialSource) {
+
+						// CHM 2014-02-24: preserve sorting of intermediate result, might be sorted by distance which we cannot reproduce easily
+						intermediateResultSet.retainAll(mergedSources);
+
+					} else {
+
+						intermediateResultSet.addAll(mergedSources);
+					}
 				}
 
-				if (addToResult) {
+				// Filter intermediate result
+				for (GraphObject obj : intermediateResultSet) {
 
-					finalResult.add(obj);
-					resultCount++;
+					boolean addToResult = true;
+
+					// check all attributes before adding a node
+					for (SearchAttribute attr : rootGroup.getSearchAttributes()) {
+
+						// check all search attributes
+						addToResult &= attr.includeInResult(obj);
+					}
+
+					if (addToResult) {
+
+						finalResult.add(obj);
+						resultCount++;
+					}
 				}
+
+				// sort list
+				Collections.sort(finalResult, new GraphObjectComparator(sortKey, sortDescending));
+
+				// return paged final result
+				return new Result(PagingHelper.subList(finalResult, pageSize, page, offsetId), resultCount, true, false);
+
+			} else {
+
+				// no filtering
+				return intermediateResult;
 			}
 
-			// sort list
-			Collections.sort(finalResult, new GraphObjectComparator(sortKey, sortDescending));
-
-			// return paged final result
-			return new Result(PagingHelper.subList(finalResult, pageSize, page, offsetId), resultCount, true, false);
-
-		} else {
-
-			// no filtering
-			return intermediateResult;
 		}
 	}
 
