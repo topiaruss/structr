@@ -378,6 +378,9 @@ public class GroupProperty extends Property<PropertyMap> implements PropertyGrou
 
 						key.determineSearchType(securityContext, searchValue, query);
 					}
+
+					// cannot user Cypher for group properties with nested keys
+					query.disableCypher();
 				}
 			}
 		}

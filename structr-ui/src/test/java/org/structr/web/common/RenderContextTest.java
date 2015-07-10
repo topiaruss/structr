@@ -507,7 +507,7 @@ public class RenderContextTest extends StructrUiTest {
 			assertEquals("tester2", Scripting.replaceVariables(tester2Context, p2, "${me.name}"));
 
 			// allow unauthenticated GET on /pages
-			grant("Page/_Ui", 16, false);
+			grant("Page/_Ui", 16, true);
 
 			// test GET REST access
 			assertEquals("Invalid GET notation result", page.getName(), Scripting.replaceVariables(ctx, p1, "${from_json(GET('http://localhost:8875/structr/rest/pages/ui')).result[0].name}"));
@@ -534,7 +534,7 @@ public class RenderContextTest extends StructrUiTest {
 			// locale
 			final String localeString = ctx.getLocale().toString();
 			assertEquals("Invalid locale result", localeString, Scripting.replaceVariables(ctx, page, "${locale}"));
-			
+
 			tx.success();
 
 		} catch (FrameworkException fex) {

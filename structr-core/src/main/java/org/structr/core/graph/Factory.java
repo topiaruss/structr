@@ -18,12 +18,14 @@
  */
 package org.structr.core.graph;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.function.Function;
 import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.helpers.collection.Iterables;
 import org.structr.common.FactoryDefinition;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
@@ -206,7 +208,9 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 	protected Result resultWithOffsetId(final ResourceIterable<S> input) throws FrameworkException {
 
-		final int pageSize       = factoryProfile.getPageSize();
+		final List<S> source     = Iterables.toList(input);
+		final int size           = source.size();
+		final int pageSize       = Math.min(size, factoryProfile.getPageSize());
 		final int page           = factoryProfile.getPage();
 		final String offsetId    = factoryProfile.getOffsetId();
 		List<T> elements         = new LinkedList<>();
@@ -216,13 +220,14 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 		// We have an offsetId, so first we need to
 		// find the node with this uuid to get the offset
-		List<T> nodesUpToOffset = new LinkedList();
+		final List<T> nodesUpToOffset = new LinkedList();
+		final Iterator<S> iterator    = source.iterator();
 		int i                   = 0;
 		boolean gotOffset       = false;
 
-		for (S node : input) {
+		while (iterator.hasNext()) {
 
-			T n = instantiate(node);
+			T n = instantiate(iterator.next());
 
 			if (n == null) {
 
@@ -263,7 +268,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 			// Remove last item
 			nodesUpToOffset.remove(nodesUpToOffset.size()-1);
 
-			return new Result(nodesUpToOffset, i, true, false);
+				return new Result(nodesUpToOffset, size, true, false);
 		}
 
 		for (T node : nodesUpToOffset) {
@@ -275,21 +280,19 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 					// stop if we got enough nodes
 					if (++count > pageSize) {
 
-						return new Result(elements, count, true, false);
+						return new Result(elements, size, true, false);
 					}
 
 					elements.add(node);
 				}
-
 			}
-
 		}
 
 		// If we get here, the result was not complete, so we need to iterate
 		// through the index result (input) to get more items.
-		for (S node : input) {
+		while (iterator.hasNext()) {
 
-			T n = instantiate(node);
+			T n = instantiate(iterator.next());
 			if (n != null) {
 
 				if (++position > offset) {
@@ -297,16 +300,15 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 					// stop if we got enough nodes
 					if (++count > pageSize) {
 
-						return new Result(elements, count, true, false);
+						return new Result(elements, size, true, false);
 					}
 
 					elements.add(n);
 				}
-
 			}
 		}
 
-		return new Result(elements, count, true, false);
+		return new Result(elements, size, true, false);
 
 	}
 

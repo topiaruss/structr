@@ -58,7 +58,7 @@ public class LowercaseTypeUniquenessValidator implements PropertyValidator<Strin
 	public boolean isValid(SecurityContext securityContext, final GraphObject object, final PropertyKey<String> key, final String value, final ErrorBuffer errorBuffer) {
 
 		if (!type.isAssignableFrom(object.getClass())) {
-			
+
 			// types are different
 			return true;
 		}
@@ -72,21 +72,22 @@ public class LowercaseTypeUniquenessValidator implements PropertyValidator<Strin
 
 			return false;
 		}
-		
+
 		return true;
 	}
 
 
 	private static AbstractNode lookup(final NodeIndex index, final PropertyKey key, final String value) {
+
 		try {
-			return (AbstractNode) StructrApp.getInstance().command(SearchUserCommand.class).execute(value, key, index);
+			return (AbstractNode) StructrApp.getInstance().command(SearchUserCommand.class).execute(index, key, value);
 
 		} catch (final FrameworkException fex) {
 			fex.printStackTrace();
 		}
 		return null;
 	}
-	
+
 	@Override
 	public boolean requiresSynchronization() {
 		return true;

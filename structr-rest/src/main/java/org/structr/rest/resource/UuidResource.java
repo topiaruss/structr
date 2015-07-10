@@ -24,7 +24,6 @@ import org.structr.common.SecurityContext;
 import org.structr.common.error.FrameworkException;
 import org.structr.core.GraphObject;
 import org.structr.core.Result;
-import org.structr.core.app.App;
 import org.structr.core.app.StructrApp;
 import org.structr.core.property.PropertyKey;
 import org.structr.rest.exception.IllegalPathException;
@@ -86,19 +85,13 @@ public class UuidResource extends FilterableResource {
 
 	public GraphObject getEntity() throws FrameworkException {
 
-		final App app = StructrApp.getInstance(securityContext);
+		final GraphObject entity = StructrApp.getInstance(securityContext).get(uuid);
+		if (entity != null) {
 
-		GraphObject entity = app.nodeQuery().uuid(uuid).getFirst();
-		if (entity == null) {
-
-			entity = app.relationshipQuery().uuid(uuid).getFirst();
+			return entity;
 		}
 
-		if (entity == null) {
-			throw new NotFoundException();
-		}
-
-		return entity;
+		throw new NotFoundException();
 	}
 
 	public String getUuid() {

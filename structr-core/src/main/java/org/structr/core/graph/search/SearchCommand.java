@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -76,7 +77,6 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	protected static final boolean PUBLIC_ONLY		  = false;
 
 	private static final Map<String, Set<String>> subtypeMapForType = new LinkedHashMap<>();
-	private static final Set<Character> specialCharsExact           = new LinkedHashSet<>();
 	private static final Set<Character> specialChars                = new LinkedHashSet<>();
 	private static final Set<String> baseTypes                      = new LinkedHashSet<>();
 
@@ -110,8 +110,6 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 		specialChars.add('|');
 		specialChars.add('&');
 		specialChars.add(';');
-		specialCharsExact.add('"');
-		specialCharsExact.add('\\');
 
 		baseTypes.add(RelationshipInterface.class.getSimpleName());
 		baseTypes.add(AbstractRelationship.class.getSimpleName());
@@ -120,6 +118,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	}
 
 	private final SearchAttributeGroup rootGroup = new SearchAttributeGroup(BooleanClause.Occur.MUST);
+	private final List<String> labels            = new LinkedList<>();
 	private SearchAttributeGroup currentGroup    = rootGroup;
 	private PropertyKey sortKey                  = null;
 	private boolean publicOnly                   = false;
@@ -127,6 +126,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	private boolean sortDescending               = false;
 	private boolean doNotSort                    = false;
 	private boolean exactSearch                  = true;
+	private boolean disableCypher                = false;
 	private String offsetId                      = null;
 	private int pageSize                         = Integer.MAX_VALUE;
 	private int page                             = 1;
@@ -146,15 +146,27 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 
 		final Factory<S, T> factory = getFactory(securityContext, includeDeletedAndHidden, publicOnly, pageSize, page, offsetId);
 		final boolean anonymous     = securityContext.getUser(false) == null;
-		final boolean superUser     = securityContext.isSuperUser();
 
 		// optimization: use cypher when possible
-		if (useCypherIfPossible() && offsetId == null && exactSearch && rootGroup.canUseCypher() && (sortKey == null || !sortKey.isPassivelyIndexed())) {
+		if (!disableCypher && useCypherIfPossible() && offsetId == null && exactSearch && rootGroup.canUseCypher() && pageSize >= 0 && (sortKey == null || !sortKey.isPassivelyIndexed())) {
 
 			final StringBuilder queryBuffer = new StringBuilder();
 
-			queryBuffer.append("MATCH (n)");
-			queryBuffer.append(rootGroup.hasCypherConditions() ? " WHERE" : "");
+			if (labels.size() == 1) {
+
+				queryBuffer.append("MATCH (n:");
+				queryBuffer.append(labels.get(0));
+				queryBuffer.append(")");
+
+			} else {
+
+				queryBuffer.append("MATCH (n)");
+			}
+
+			if (rootGroup.hasCypherConditions()) {
+				queryBuffer.append(" WHERE");
+			}
+
 			queryBuffer.append(rootGroup.getCypherQuery(true));
 
 			if (anonymous) {
@@ -168,14 +180,6 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 				queryBuffer.append(" ORDER BY n.").append(sortKey.dbName());
 				queryBuffer.append(sortDescending ? " DESC" : "");
 			}
-//
-//			// special handling: use Cypher SKIP and LIMIT
-//			if ((anonymous || superUser) && pageSize < Integer.MAX_VALUE) {
-//				queryBuffer.append(" SKIP ").append(pageSize * (page - 1));
-//				queryBuffer.append(" LIMIT ").append(pageSize);
-//
-//				factory.setPage(1);
-//			}
 
 			System.out.println("Using Cypher: " + queryBuffer.toString());
 
@@ -196,10 +200,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 			if (anonymous) {
 
 				rootGroup.add(new PropertySearchAttribute(GraphObject.visibleToPublicUsers, true, BooleanClause.Occur.MUST, true));
-
 			}
-
-			System.out.println("NOT using Cypher");
 
 			// At this point, all search attributes are ready
 			List<SourceSearchAttribute> sources    = new ArrayList<>();
@@ -330,7 +331,6 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 
 				} else if (allExactMatch) {
 
-	//				try (final IndexHits hits = synchronizedLuceneQuery(getKeywordIndex(), queryContext)) {
 					try (final IndexHits hits = getKeywordIndex().query(queryContext)) {
 
 						filterResults      = hasEmptySearchFields;
@@ -588,6 +588,8 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	public org.structr.core.app.Query<T> andType(final Class type) {
 
 		currentGroup.getSearchAttributes().add(new TypeSearchAttribute(type, BooleanClause.Occur.MUST, exactSearch));
+		labels.add(type.getSimpleName());
+
 		return this;
 	}
 
@@ -595,18 +597,24 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	public org.structr.core.app.Query<T> orType(final Class type) {
 
 		currentGroup.getSearchAttributes().add(new TypeSearchAttribute(type, BooleanClause.Occur.SHOULD, exactSearch));
+		labels.add(type.getSimpleName());
+
 		return this;
 	}
 
 	public org.structr.core.app.Query<T> andType(final String type) {
 
 		currentGroup.getSearchAttributes().add(new TypeSearchAttribute(type, BooleanClause.Occur.MUST, exactSearch));
+		labels.add(type);
+
 		return this;
 	}
 
 	public org.structr.core.app.Query<T> orType(final String type) {
 
 		currentGroup.getSearchAttributes().add(new TypeSearchAttribute(type, BooleanClause.Occur.SHOULD, exactSearch));
+		labels.add(type);
+
 		return this;
 	}
 
@@ -841,6 +849,11 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	@Override
 	public SearchAttributeGroup getRootAttributeGroup() {
 		return rootGroup;
+	}
+
+	@Override
+	public void disableCypher() {
+		this.disableCypher = true;
 	}
 
 	// ----- static methods -----

@@ -30,7 +30,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.helpers.collection.Iterables;
 import org.structr.common.StructrAndSpatialPredicate;
-import org.structr.core.GraphObject;
 import org.structr.core.app.StructrApp;
 
 //~--- classes ----------------------------------------------------------------
@@ -79,25 +78,7 @@ public class BulkCreateLabelsCommand extends NodeServiceCommand implements Maint
 
 			@Override
 			public void handleGraphObject(SecurityContext securityContext, AbstractNode node) {
-
-				final String type = node.getProperty(GraphObject.type);
-				if (type != null) {
-
-					try {
-
-						// Since the setProperty method of the TypeProperty
-						// overrides the default setProperty behaviour, we
-						// do not need to set a different type value first.
-
-						node.unlockReadOnlyPropertiesOnce();
-						GraphObject.type.setProperty(securityContext, node, type);
-
-					} catch (FrameworkException fex) {
-						// ignore
-					}
-				}
 				node.updateInIndex();
-
 			}
 
 			@Override

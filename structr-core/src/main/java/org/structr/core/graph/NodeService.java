@@ -18,7 +18,6 @@
  */
 package org.structr.core.graph;
 
-import org.apache.commons.collections.map.LRUMap;
 
 import org.neo4j.gis.spatial.indexprovider.LayerNodeIndex;
 import org.neo4j.gis.spatial.indexprovider.SpatialIndexProvider;
@@ -33,7 +32,6 @@ import org.neo4j.index.impl.lucene.LuceneIndexImplementation;
 import org.structr.core.Command;
 import org.structr.core.Services;
 import org.structr.core.SingletonService;
-import org.structr.core.entity.AbstractNode;
 import org.structr.core.entity.Location;
 
 //~--- JDK imports ------------------------------------------------------------
@@ -64,8 +62,7 @@ import org.structr.core.app.StructrApp;
  */
 public class NodeService implements SingletonService {
 
-	private static final Logger logger                       = Logger.getLogger(NodeService.class.getName());
-	private static final Map<String, AbstractNode> nodeCache = (Map<String, AbstractNode>) Collections.synchronizedMap(new LRUMap(100000));
+	private static final Logger logger = Logger.getLogger(NodeService.class.getName());
 
 	//~--- fields ---------------------------------------------------------
 
@@ -75,12 +72,9 @@ public class NodeService implements SingletonService {
 	private Index<Node> fulltextIndex               = null;
 	private Index<Node> keywordIndex                = null;
 	private Index<Node> layerIndex                  = null;
-	private Index<Node> userIndex                   = null;
-	private Index<Node> uuidIndex                   = null;
 
 	private Index<Relationship> relFulltextIndex    = null;
 	private Index<Relationship> relKeywordIndex     = null;
-	private Index<Relationship> relUuidIndex        = null;
 
 	// indices
 	private final Map<RelationshipIndex, Index<Relationship>> relIndices = new EnumMap<>(RelationshipIndex.class);
@@ -95,12 +89,12 @@ public class NodeService implements SingletonService {
 	/**
 	 * The list of existing node indices.
 	 */
-	public static enum NodeIndex { uuid, user, caseInsensitive, keyword, fulltext, layer }
+	public static enum NodeIndex { caseInsensitive, keyword, fulltext, layer }
 
 	/**
 	 * The list of existing relationship indices.
 	 */
-	public static enum RelationshipIndex { rel_uuid, rel_keyword, rel_fulltext }
+	public static enum RelationshipIndex { rel_keyword, rel_fulltext }
 
 	//~--- methods --------------------------------------------------------
 
@@ -112,14 +106,11 @@ public class NodeService implements SingletonService {
 
 			command.setArgument("graphDb", graphDb);
 
-			command.setArgument(NodeIndex.uuid.name(), uuidIndex);
 			command.setArgument(NodeIndex.fulltext.name(), fulltextIndex);
-			command.setArgument(NodeIndex.user.name(), userIndex);
 			command.setArgument(NodeIndex.caseInsensitive.name(), caseInsensitiveIndex);
 			command.setArgument(NodeIndex.keyword.name(), keywordIndex);
 			command.setArgument(NodeIndex.layer.name(), layerIndex);
 
-			command.setArgument(RelationshipIndex.rel_uuid.name(), relUuidIndex);
 			command.setArgument(RelationshipIndex.rel_fulltext.name(), relFulltextIndex);
 			command.setArgument(RelationshipIndex.rel_keyword.name(), relKeywordIndex);
 
@@ -155,8 +146,8 @@ public class NodeService implements SingletonService {
 		// neo4j remote shell configuration
 		builder.setConfig(ShellSettings.remote_shell_enabled, config.getProperty(Services.NEO4J_SHELL_ENABLED, "false"));
 		builder.setConfig(ShellSettings.remote_shell_port,    config.getProperty(Services.NEO4J_SHELL_PORT, "1337"));
-		
-		// Neo4j page cache memory, default 64m 
+
+		// Neo4j page cache memory, default 64m
 		builder.setConfig(GraphDatabaseSettings.pagecache_memory, config.getProperty(Services.NEO4J_PAGE_CACHE_MEMORY, Long.toString(1024*1024*64L)));
 
 		// create graph database instance
@@ -179,65 +170,45 @@ public class NodeService implements SingletonService {
 		}
 
 		logger.log(Level.INFO, "Database ready.");
-		logger.log(Level.FINE, "Initializing UUID index...");
 
 		// index creation transaction
 		try ( final Transaction tx = graphDb.beginTx() ) {
-
-//			uuidIndex = graphDb.index().forNodes("uuidAllNodes", LuceneIndexImplementation.EXACT_CONFIG);
-//			nodeIndices.put(NodeIndex.uuid, uuidIndex);
-//
-//			logger.log(Level.FINE, "UUID index ready.");
-//			logger.log(Level.FINE, "Initializing user index...");
-//
-//			userIndex = graphDb.index().forNodes("nameEmailAllUsers", LuceneIndexImplementation.EXACT_CONFIG);
-//			nodeIndices.put(NodeIndex.user, userIndex);
-//
-//			logger.log(Level.FINE, "Node Email index ready.");
-//			logger.log(Level.FINE, "Initializing exact email index...");
 
 			caseInsensitiveIndex = graphDb.index().forNodes("caseInsensitiveAllNodes", MapUtil.stringMap( "provider", "lucene", "type", "exact", "to_lower_case", "true" ));
 			nodeIndices.put(NodeIndex.caseInsensitive, caseInsensitiveIndex);
 
 			logger.log(Level.FINE, "Node case insensitive node index ready.");
-			logger.log(Level.FINE, "Initializing case insensitive fulltext node index...");
 
+
+			logger.log(Level.FINE, "Initializing case insensitive fulltext node index...");
 			fulltextIndex = graphDb.index().forNodes("fulltextAllNodes", LuceneIndexImplementation.FULLTEXT_CONFIG);
 			nodeIndices.put(NodeIndex.fulltext, fulltextIndex);
-
 			logger.log(Level.FINE, "Fulltext node index ready.");
-			logger.log(Level.FINE, "Initializing keyword node index...");
 
+
+			logger.log(Level.FINE, "Initializing keyword node index...");
 			keywordIndex = graphDb.index().forNodes("keywordAllNodes", LuceneIndexImplementation.EXACT_CONFIG);
 			nodeIndices.put(NodeIndex.keyword, keywordIndex);
-
 			logger.log(Level.FINE, "Keyword node index ready.");
+
+
 			logger.log(Level.FINE, "Initializing layer index...");
-
 			final Map<String, String> spatialConfig = new HashMap<>();
-
 			spatialConfig.put(LayerNodeIndex.LAT_PROPERTY_KEY, Location.latitude.dbName());
 			spatialConfig.put(LayerNodeIndex.LON_PROPERTY_KEY, Location.longitude.dbName());
 			spatialConfig.put(SpatialIndexProvider.GEOMETRY_TYPE, LayerNodeIndex.POINT_PARAMETER);
-
 			layerIndex = new LayerNodeIndex("layerIndex", graphDb, spatialConfig);
 			nodeIndices.put(NodeIndex.layer, layerIndex);
-
 			logger.log(Level.FINE, "Layer index ready.");
-			logger.log(Level.FINE, "Initializing node factory...");
 
-			relUuidIndex = graphDb.index().forRelationships("uuidAllRelationships", LuceneIndexImplementation.EXACT_CONFIG);
-			relIndices.put(RelationshipIndex.rel_uuid, relUuidIndex);
 
-			logger.log(Level.FINE, "Relationship UUID index ready.");
 			logger.log(Level.FINE, "Initializing relationship index...");
-
 			relFulltextIndex = graphDb.index().forRelationships("fulltextAllRelationships", LuceneIndexImplementation.FULLTEXT_CONFIG);
 			relIndices.put(RelationshipIndex.rel_fulltext, relFulltextIndex);
-
 			logger.log(Level.FINE, "Relationship fulltext index ready.");
-			logger.log(Level.FINE, "Initializing keyword relationship index...");
 
+
+			logger.log(Level.FINE, "Initializing keyword relationship index...");
 			relKeywordIndex = graphDb.index().forRelationships("keywordAllRelationships", LuceneIndexImplementation.EXACT_CONFIG);
 			relIndices.put(RelationshipIndex.rel_keyword, relKeywordIndex);
 
@@ -247,11 +218,6 @@ public class NodeService implements SingletonService {
 
 			logger.log(Level.WARNING, "Error while initializing indexes.", t);
 		}
-
-		logger.log(Level.FINE, "Relationship numeric index ready.");
-		logger.log(Level.FINE, "Initializing relationship factory...");
-		logger.log(Level.FINE, "Relationship factory ready.");
-		logger.log(Level.FINE, "Cypher execution engine ready.");
 
 		isInitialized = true;
 	}
@@ -278,18 +244,6 @@ public class NodeService implements SingletonService {
 
 	}
 
-	public static void addNodeToCache(String uuid, AbstractNode node) {
-
-		nodeCache.put(uuid, node);
-
-	}
-
-	public static void removeNodeFromCache(String uuid) {
-
-		nodeCache.remove(uuid);
-
-	}
-
 	//~--- get methods ----------------------------------------------------
 
 	@Override
@@ -298,13 +252,6 @@ public class NodeService implements SingletonService {
 		return NodeService.class.getSimpleName();
 
 	}
-
-	public static AbstractNode getNodeFromCache(String uuid) {
-
-		return nodeCache.get(uuid);
-
-	}
-
 	// </editor-fold>
 
 	public GraphDatabaseService getGraphDb() {

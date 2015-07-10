@@ -20,6 +20,7 @@ package org.structr.core.graph.search;
 
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.util.NumericUtils;
+import org.structr.core.property.ArrayProperty;
 import org.structr.core.property.PropertyKey;
 
 /**
@@ -35,6 +36,76 @@ public class DoubleSearchAttribute extends PropertySearchAttribute<Double> {
 	@Override
 	public String toString() {
 		return "DoubleSearchAttribute()";
+	}
+
+	@Override
+	public boolean canUseCypher() {
+		return getValue() == null || (!getValue().isInfinite() && !getValue().isNaN());
+	}
+
+	@Override
+	public String getCypherQuery(final boolean first) {
+
+		final StringBuilder buf = new StringBuilder();
+		final Double value       = getValue();
+
+		appendOccur(buf, first);
+
+		if (getKey() instanceof ArrayProperty) {
+
+			buf.append(" ANY (x IN n.");
+			buf.append(getKey().dbName());
+			buf.append(" WHERE x");
+
+			if (value == null) {
+
+				buf.append(" IS NULL");
+
+			} else if (value.isNaN()) {
+
+				buf.append(" = ");
+				buf.append(Double.longBitsToDouble(0x7ff8000000000000L));
+
+			} else if (value.isInfinite()) {
+
+				buf.append(" = ");
+				buf.append(Double.longBitsToDouble(0x7ff0000000000000L));
+
+			} else {
+
+				buf.append(" = ");
+				buf.append(getValue());
+			}
+
+			buf.append(")");
+
+		} else {
+
+			buf.append(" n.");
+			buf.append(getKey().dbName());
+
+			if (value == null) {
+
+				buf.append(" IS NULL");
+
+			} else if (value.isNaN()) {
+
+				buf.append(" = ");
+				buf.append(Double.longBitsToDouble(0x7ff8000000000000L));
+
+			} else if (value.isInfinite()) {
+
+				buf.append(" = ");
+				buf.append(Double.longBitsToDouble(0x7ff0000000000000L));
+
+			} else {
+
+				buf.append(" = ");
+				buf.append(getValue());
+			}
+		}
+
+		return buf.toString();
 	}
 
 	@Override

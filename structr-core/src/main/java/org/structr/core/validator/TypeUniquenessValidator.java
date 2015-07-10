@@ -18,6 +18,7 @@
  */
 package org.structr.core.validator;
 
+import java.util.List;
 import org.structr.common.SecurityContext;
 import org.structr.common.error.EmptyPropertyToken;
 import org.structr.common.error.ErrorBuffer;
@@ -28,7 +29,6 @@ import org.structr.core.PropertyValidator;
 import org.structr.core.entity.AbstractNode;
 import java.util.logging.Logger;
 import org.structr.core.property.PropertyKey;
-import org.structr.core.Result;
 import org.structr.core.app.StructrApp;
 
 //~--- classes ----------------------------------------------------------------
@@ -76,25 +76,21 @@ public class TypeUniquenessValidator<T> implements PropertyValidator<T> {
 
 		if (key != null) {
 
-			Result<AbstractNode> result = null;
-			boolean nodeExists          = false;
-			String id                   = null;
+			List<AbstractNode> result = null;
+			String id                 = null;
 
 			try {
 
-				result = StructrApp.getInstance().nodeQuery(type).and(key, value).getResult();
-				nodeExists = !result.isEmpty();
+				result = StructrApp.getInstance().nodeQuery(type).and(key, value).getAsList();
 
 			} catch (FrameworkException fex) {
 
 				fex.printStackTrace();
-
 			}
 
-			if (nodeExists) {
+			for (final AbstractNode foundNodes : result) {
 
-				AbstractNode foundNode = result.get(0);
-				if (foundNode.getId() != object.getId()) {
+				if (foundNodes.getId() != object.getId()) {
 
 					id = ((AbstractNode) result.get(0)).getUuid();
 

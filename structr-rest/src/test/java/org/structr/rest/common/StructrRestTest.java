@@ -253,7 +253,7 @@ public class StructrRestTest extends TestCase {
 		}
 
 		final StructrConf config = Services.getBaseConfiguration();
-		
+
 		return getUuidFromLocation(
 			RestAssured
 			.given()
@@ -353,7 +353,7 @@ public class StructrRestTest extends TestCase {
 		config.setProperty("JsonRestServlet.user.autocreate", "false");
 		config.setProperty("JsonRestServlet.defaultview", PropertyView.Public);
 		config.setProperty("JsonRestServlet.outputdepth", "3");
-		
+
 		if (additionalConfig != null) {
 			config.putAll(additionalConfig);
 		}

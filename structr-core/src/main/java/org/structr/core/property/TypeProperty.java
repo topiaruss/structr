@@ -51,40 +51,44 @@ public class TypeProperty extends StringProperty {
 		super.setProperty(securityContext, obj, value);
 
 		if (obj instanceof NodeInterface) {
+			updateLabels((NodeInterface)obj, value);
+		}
+	}
 
-			final Class type              = StructrApp.getConfiguration().getNodeEntityClass(value);
-			final Set<Label> intersection = new LinkedHashSet<>();
-			final Set<Label> toRemove     = new LinkedHashSet<>();
-			final Set<Label> toAdd        = new LinkedHashSet<>();
-			final Node dbNode             = ((NodeInterface)obj).getNode();
+	public static void updateLabels(final NodeInterface source, final String value) {
 
-			// collect labels that are already present on a node
-			for (final Label label : dbNode.getLabels()) {
-				toRemove.add(label);
-			}
+		final Class type              = StructrApp.getConfiguration().getNodeEntityClass(value);
+		final Set<Label> intersection = new LinkedHashSet<>();
+		final Set<Label> toRemove     = new LinkedHashSet<>();
+		final Set<Label> toAdd        = new LinkedHashSet<>();
+		final Node dbNode             = source.getNode();
 
-			// collect new labels
-			for (final Class supertype : SearchCommand.typeAndAllSupertypes(type)) {
-				toAdd.add(DynamicLabel.label(supertype.getSimpleName()));
-			}
+		// collect labels that are already present on a node
+		for (final Label label : dbNode.getLabels()) {
+			toRemove.add(label);
+		}
 
-			// calculate intersection
-			intersection.addAll(toAdd);
-			intersection.retainAll(toRemove);
+		// collect new labels
+		for (final Class supertype : SearchCommand.typeAndAllSupertypes(type)) {
+			toAdd.add(DynamicLabel.label(supertype.getSimpleName()));
+		}
 
-			// calculate differences
-			toAdd.removeAll(intersection);
-			toRemove.removeAll(intersection);
+		// calculate intersection
+		intersection.addAll(toAdd);
+		intersection.retainAll(toRemove);
 
-			// remove difference
-			for (final Label remove : toRemove) {
-				dbNode.removeLabel(remove);
-			}
+		// calculate differences
+		toAdd.removeAll(intersection);
+		toRemove.removeAll(intersection);
 
-			// add difference
-			for (final Label add : toAdd) {
-				dbNode.addLabel(add);
-			}
+		// remove difference
+		for (final Label remove : toRemove) {
+			dbNode.removeLabel(remove);
+		}
+
+		// add difference
+		for (final Label add : toAdd) {
+			dbNode.addLabel(add);
 		}
 	}
 }

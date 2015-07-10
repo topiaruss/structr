@@ -24,13 +24,10 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 import org.structr.core.property.PropertyKey;
-import org.structr.core.entity.AbstractNode;
 import org.structr.core.graph.NodeService.NodeIndex;
 import org.structr.core.graph.NodeServiceCommand;
 import org.structr.common.error.FrameworkException;
-import org.structr.core.entity.Principal;
 import org.structr.core.graph.NodeFactory;
-import org.structr.core.graph.NodeInterface;
 
 //~--- classes ----------------------------------------------------------------
 
@@ -41,59 +38,23 @@ import org.structr.core.graph.NodeInterface;
  */
 public class SearchUserCommand extends NodeServiceCommand {
 
-	public Object execute(Object... parameters) throws FrameworkException {
+	public Object execute(final NodeIndex indexName, final PropertyKey<String> key, final String value) throws FrameworkException {
 
 		final NodeFactory nodeFactory = new NodeFactory(securityContext);
+		final Index<Node> index       = getIndexFromArguments(indexName, arguments);
 
-		switch (parameters.length) {
+		// see: http://docs.neo4j.org/chunked/milestone/indexing-create-advanced.html
+		try (final IndexHits<Node> indexHits = index.query( key.dbName(), "\"" + value + "\"" )) {
 
-			case 1 : {
-				final Index<Node> index = getIndexFromArguments(NodeIndex.user, arguments);
+			for (final Node n : indexHits) {
 
-				// we have only a simple user name
-				if (parameters[0] instanceof String) {
+				final Object u = nodeFactory.instantiate(n);
+				if (u != null) {
 
-					final String userName = (String) parameters[0];
-
-					for (final Node n : index.get(AbstractNode.name.dbName(), userName)) {
-
-						final NodeInterface s = nodeFactory.instantiate(n);
-
-						if (s.getType().equals(Principal.class.getSimpleName())) {
-
-							return s;
-
-						}
-
-					}
-
+					return u;
 				}
-			} break;
-
-			case 3 : {
-
-				final String userNickName = (String) parameters[0];
-				final PropertyKey key = (PropertyKey) parameters[1];
-				final NodeIndex idx = (NodeIndex) parameters[2];
-				final Index<Node> index = getIndexFromArguments(idx, arguments);
-
-				// see: http://docs.neo4j.org/chunked/milestone/indexing-create-advanced.html
-				try (final IndexHits<Node> indexHits = index.query( key.dbName(), "\"" + userNickName + "\"" )) {
-
-					for (final Node n : indexHits) {
-						final Object u = nodeFactory.instantiate(n);
-						if (u != null) {
-							return u;
-						}
-					}
-				}
-			}	break;
-
-			default :
-				break;
-
+			}
 		}
-
 
 		return null;
 	}

@@ -422,8 +422,8 @@ public class CloudConnection<T> extends Thread implements TransactionSource {
 
 			// Get new start and end node
 			final SecurityContext securityContext = SecurityContext.getSuperUserInstance();
-			final NodeInterface targetStartNode   = (NodeInterface) app.get(targetStartNodeId);
-			final NodeInterface targetEndNode     = (NodeInterface) app.get(targetEndNodeId);
+			final NodeInterface targetStartNode   = app.getNodeById(targetStartNodeId);
+			final NodeInterface targetEndNode     = app.getNodeById(targetEndNodeId);
 			final String typeName                 = receivedRelationshipData.getType();
 			final Class relType                   = config.getRelationshipEntityClass(typeName);
 
@@ -462,17 +462,19 @@ public class CloudConnection<T> extends Thread implements TransactionSource {
 
 	public void delete(final String uuid) throws FrameworkException {
 
-		final GraphObject obj = app.get(uuid);
-		if (obj != null) {
+		final NodeInterface node = app.getNodeById(uuid);
+		if (node != null) {
 
-			if (obj instanceof NodeInterface) {
+			app.delete(node);
 
-				app.delete((NodeInterface)obj);
+			count++;
+			total++;
+		}
 
-			} else {
+		final RelationshipInterface rel = app.getRelationshipById(uuid);
+		if (rel != null) {
 
-				app.delete((RelationshipInterface)obj);
-			}
+			app.delete(rel);
 
 			count++;
 			total++;
@@ -480,7 +482,7 @@ public class CloudConnection<T> extends Thread implements TransactionSource {
 	}
 
 	public void deleteRelationship(final String uuid) throws FrameworkException {
-		app.delete((RelationshipInterface)app.get(uuid));
+		app.delete(app.getRelationshipById(uuid));
 	}
 
 	public void beginTransaction() {

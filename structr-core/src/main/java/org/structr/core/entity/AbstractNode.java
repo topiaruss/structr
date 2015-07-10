@@ -65,6 +65,7 @@ import org.structr.core.graph.RelationshipInterface;
 import org.structr.core.parser.Functions;
 import org.structr.core.property.PropertyKey;
 import org.structr.core.property.PropertyMap;
+import org.structr.core.property.TypeProperty;
 import org.structr.core.script.Scripting;
 import org.structr.schema.action.ActionContext;
 
@@ -1040,6 +1041,8 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable 
 
 	@Override
 	public void updateInIndex() {
+
+		TypeProperty.updateLabels(this, getType());
 
 		removeFromIndex();
 		addToIndex();

@@ -34,7 +34,6 @@ import org.structr.core.entity.TestTwo;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.structr.core.Result;
 import org.structr.core.entity.SixOneOneToOne;
 import org.structr.core.entity.TestSix;
 import org.structr.core.entity.TestTen;
@@ -104,9 +103,7 @@ public class DeleteGraphObjectsTest extends StructrTest {
 
 			try (final Tx tx = app.tx()) {
 
-				Result result = app.nodeQuery(NodeInterface.class).uuid(uuid).getResult();
-
-				assertEquals("Node should have been deleted", 0, result.size());
+				assertNull("Node should have been deleted", app.getNodeById(uuid));
 
 			} catch (FrameworkException fe) {}
 

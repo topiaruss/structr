@@ -231,7 +231,5 @@ public class SearchAttributeGroup extends SearchAttribute {
 
 			attr.setExactMatch(exact);
 		}
-
 	}
-
 }

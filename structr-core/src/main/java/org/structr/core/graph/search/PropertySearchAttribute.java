@@ -30,6 +30,7 @@ import org.apache.lucene.search.WildcardQuery;
 import org.structr.core.GraphObject;
 import org.structr.core.property.AbstractPrimitiveProperty;
 import org.structr.core.property.ArrayProperty;
+import org.structr.core.property.GroupProperty;
 import org.structr.core.property.PropertyKey;
 
 /**
@@ -57,7 +58,22 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 
 	@Override
 	public boolean canUseCypher() {
-		return !GraphObject.id.equals(getKey()) && !getKey().isPassivelyIndexed();
+
+		final PropertyKey key = getKey();
+
+		if (GraphObject.id.equals(key)) {
+			return false;
+		}
+
+		if (key.isPassivelyIndexed()) {
+			return false;
+		}
+
+		if (key instanceof GroupProperty) {
+			return false;
+		}
+
+		return true;
 	}
 
 	@Override
@@ -69,6 +85,7 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 	public String getCypherQuery(final boolean first) {
 
 		final StringBuilder buf = new StringBuilder();
+		final Object value      = getValue();
 
 		appendOccur(buf, first);
 
@@ -76,18 +93,38 @@ public class PropertySearchAttribute<T> extends SearchAttribute<T> {
 
 			buf.append(" ANY (x IN n.");
 			buf.append(getKey().dbName());
-			buf.append(" WHERE x = '");
-			buf.append(getStringValue());
-			buf.append("')");
+			buf.append(" WHERE x");
+
+			if (value == null) {
+
+				buf.append(" IS NULL");
+
+			} else {
+
+				buf.append(" = ");
+				if (value instanceof String || value instanceof Enum) { buf.append("'"); }
+				buf.append(getValue());
+				if (value instanceof String || value instanceof Enum) { buf.append("'"); }
+			}
+
+			buf.append(")");
 
 		} else {
 
 			buf.append(" n.");
 			buf.append(getKey().dbName());
-			buf.append(" = '");
-			buf.append(getStringValue());
-			buf.append("'");
 
+			if (value == null) {
+
+				buf.append(" IS NULL");
+
+			} else {
+
+				buf.append(" = ");
+				if (value instanceof String || value instanceof Enum) { buf.append("'"); }
+				buf.append(getValue());
+				if (value instanceof String || value instanceof Enum) { buf.append("'"); }
+			}
 		}
 
 		return buf.toString();
