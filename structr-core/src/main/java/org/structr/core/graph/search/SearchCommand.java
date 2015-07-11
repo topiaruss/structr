@@ -852,8 +852,10 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 	}
 
 	@Override
-	public void disableCypher() {
+	public org.structr.core.app.Query<T> disableCypher() {
+
 		this.disableCypher = true;
+		return this;
 	}
 
 	// ----- static methods -----

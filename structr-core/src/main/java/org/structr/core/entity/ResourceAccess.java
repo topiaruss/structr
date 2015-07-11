@@ -206,7 +206,7 @@ public class ResourceAccess extends AbstractNode {
 
 			//grant = StructrApp.getInstance(securityContext).nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).getFirst();
 			// ignore security context for now, so ResourceAccess objects don't have to be visible
-			grant = StructrApp.getInstance().nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).getFirst();
+			grant = StructrApp.getInstance().nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).disableCypher().getFirst();
 			if (grant != null) {
 
 				grantCache.put(signature, grant);

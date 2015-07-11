@@ -87,7 +87,7 @@ public class SchemaService implements Service {
 					SchemaService.ensureBuiltinTypesExist();
 
 					// collect node classes
-					final List<SchemaNode> schemaNodes = StructrApp.getInstance().nodeQuery(SchemaNode.class).getAsList();
+					final List<SchemaNode> schemaNodes = StructrApp.getInstance().nodeQuery(SchemaNode.class).disableCypher().getAsList();
 					for (final SchemaNode schemaNode : schemaNodes) {
 
 						nodeExtender.addClass(schemaNode.getClassName(), schemaNode.getSource(errorBuffer));
@@ -102,7 +102,7 @@ public class SchemaService implements Service {
 					}
 
 					// collect relationship classes
-					for (final SchemaRelationshipNode schemaRelationship : StructrApp.getInstance().nodeQuery(SchemaRelationshipNode.class).getAsList()) {
+					for (final SchemaRelationshipNode schemaRelationship : StructrApp.getInstance().nodeQuery(SchemaRelationshipNode.class).disableCypher().getAsList()) {
 
 						nodeExtender.addClass(schemaRelationship.getClassName(), schemaRelationship.getSource(errorBuffer));
 
@@ -133,7 +133,7 @@ public class SchemaService implements Service {
 					}
 
 					// create properties and views etc.
-					for (final SchemaNode schemaNode : StructrApp.getInstance().nodeQuery(SchemaNode.class).getAsList()) {
+					for (final SchemaNode schemaNode : StructrApp.getInstance().nodeQuery(SchemaNode.class).disableCypher().getAsList()) {
 						schemaNode.createBuiltInSchemaEntities(errorBuffer);
 					}
 

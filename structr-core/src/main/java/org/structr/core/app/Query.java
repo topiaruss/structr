@@ -86,5 +86,5 @@ public interface Query<T extends GraphObject> extends Iterable<T> {
 	public Predicate<GraphObject> toPredicate();
 	public SearchAttributeGroup getRootAttributeGroup();
 
-	public void disableCypher();
+	public Query<T> disableCypher();
 }
