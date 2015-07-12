@@ -144,11 +144,11 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 	 */
 	public List<T> bulkInstantiate(final Iterable<S> input) throws FrameworkException {
 
-		List<T> nodes = new LinkedList<>();
+		final List<T> nodes = new LinkedList<>();
 
 		if ((input != null) && input.iterator().hasNext()) {
 
-			for (S node : input) {
+			for (final S node : input) {
 
 				T n = instantiate(node);
 				if (n != null) {
@@ -195,7 +195,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 	// <editor-fold defaultstate="collapsed" desc="private methods">
 	protected List<S> read(final Iterable<S> it) {
 
-		List<S> nodes = new LinkedList();
+		final List<S> nodes = new LinkedList();
 
 		while (it.iterator().hasNext()) {
 
@@ -213,7 +213,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		final int pageSize       = Math.min(size, factoryProfile.getPageSize());
 		final int page           = factoryProfile.getPage();
 		final String offsetId    = factoryProfile.getOffsetId();
-		List<T> elements         = new LinkedList<>();
+		final List<T> elements   = new LinkedList<>();
 		int position             = 0;
 		int count                = 0;
 		int offset               = 0;
@@ -227,7 +227,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 		while (iterator.hasNext()) {
 
-			T n = instantiate(iterator.next());
+			final T n = instantiate(iterator.next());
 
 			if (n == null) {
 
@@ -271,7 +271,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 				return new Result(nodesUpToOffset, size, true, false);
 		}
 
-		for (T node : nodesUpToOffset) {
+		for (final T node : nodesUpToOffset) {
 
 			if (node != null) {
 
@@ -292,7 +292,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		// through the index result (input) to get more items.
 		while (iterator.hasNext()) {
 
-			T n = instantiate(iterator.next());
+			final T n = instantiate(iterator.next());
 			if (n != null) {
 
 				if (++position > offset) {
@@ -320,15 +320,15 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 
 		if (page < 0) {
 
-			List<S> rawNodes = read(input);
-			int size         = rawNodes.size();
+			final List<S> rawNodes = read(input);
+			final int size         = rawNodes.size();
 
 			fromIndex = Math.max(0, size + (page * pageSize));
 
 			final List<T> nodes = new LinkedList<>();
-			int toIndex         = Math.min(size, fromIndex + pageSize);
+			final int toIndex   = Math.min(size, fromIndex + pageSize);
 
-			for (S n : rawNodes.subList(fromIndex, toIndex)) {
+			for (final S n : rawNodes.subList(fromIndex, toIndex)) {
 
 				nodes.add(instantiate(n));
 			}
@@ -353,7 +353,7 @@ public abstract class Factory<S, T extends GraphObject> implements Adapter<S, T>
 		int overallCount    = 0;
 		boolean pageFull    = false;
 
-		for (S s : input) {
+		for (final S s : input) {
 
 			T node = instantiate(s);
 

@@ -170,7 +170,9 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 			queryBuffer.append(rootGroup.getCypherQuery(true));
 
 			if (anonymous) {
-				queryBuffer.append(" AND n.visibleToPublicUsers = true");
+				queryBuffer.append(" AND n.");
+				queryBuffer.append(GraphObject.visibleToPublicUsers.dbName());
+				queryBuffer.append(" = true");
 			}
 
 			queryBuffer.append(" RETURN n");
@@ -181,7 +183,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 				queryBuffer.append(sortDescending ? " DESC" : "");
 			}
 
-			System.out.println("Using Cypher: " + queryBuffer.toString());
+			//System.out.println("Using Cypher: " + queryBuffer.toString());
 
 			final GraphDatabaseService graphDb = (GraphDatabaseService)getArgument("graphDb");
 			final org.neo4j.graphdb.Result result = graphDb.execute(queryBuffer.toString());
