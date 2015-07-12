@@ -750,7 +750,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 	 */
 	private Page notFound(final HttpServletResponse response, final SecurityContext securityContext) throws IOException, FrameworkException {
 
-		final Page errorPage = StructrApp.getInstance(securityContext).nodeQuery(Page.class).and(Page.showOnErrorCodes, "404", false).getFirst();
+		final Page errorPage = StructrApp.getInstance(securityContext).nodeQuery(Page.class).and(Page.showOnErrorCodes, "404", false).disableCypher().getFirst();
 
 		if (errorPage != null) {
 
@@ -784,7 +784,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 
 			logger.log(Level.FINE, "Requested name: {0}", name);
 
-			final Result results = StructrApp.getInstance(securityContext).nodeQuery().and(AbstractNode.name, name).getResult();
+			final Result results = StructrApp.getInstance(securityContext).nodeQuery().and(AbstractNode.name, name).disableCypher().getResult();
 
 			logger.log(Level.FINE, "{0} results", results.size());
 			request.setAttribute(POSSIBLE_ENTRY_POINTS_KEY, results.getResults());
@@ -897,7 +897,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 	 */
 	private Page findIndexPage(final SecurityContext securityContext, final EditMode edit) throws FrameworkException {
 
-		final Result<Page> result = StructrApp.getInstance(securityContext).nodeQuery(Page.class).sort(Page.position).order(false).getResult();
+		final Result<Page> result = StructrApp.getInstance(securityContext).nodeQuery(Page.class).sort(Page.position).order(false).disableCypher().getResult();
 		Collections.sort(result.getResults(), new GraphObjectComparator(Page.position, GraphObjectComparator.ASCENDING));
 
 		// Find first visible page
@@ -946,7 +946,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 			Result<Principal> results;
 			try (final Tx tx = app.tx()) {
 
-				results = app.nodeQuery(Principal.class).and(User.confirmationKey, key).getResult();
+				results = app.nodeQuery(Principal.class).and(User.confirmationKey, key).disableCypher().getResult();
 			}
 
 			if (!results.isEmpty()) {
@@ -1015,7 +1015,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 			Result<Principal> results;
 			try (final Tx tx = app.tx()) {
 
-				results = app.nodeQuery(Principal.class).and(User.confirmationKey, key).getResult();
+				results = app.nodeQuery(Principal.class).and(User.confirmationKey, key).disableCypher().getResult();
 			}
 
 			if (!results.isEmpty()) {
@@ -1059,7 +1059,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 
 			logger.log(Level.FINE, "Requested id: {0}", uuid);
 
-			final Query query = StructrApp.getInstance(securityContext).nodeQuery();
+			final Query query = StructrApp.getInstance(securityContext).nodeQuery().disableCypher();
 
 			query.and(GraphObject.id, uuid);
 			query.and().orType(Page.class).orTypes(File.class);
@@ -1088,7 +1088,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 
 			logger.log(Level.FINE, "Requested path: {0}", path);
 
-			final Query query = StructrApp.getInstance(securityContext).nodeQuery();
+			final Query query = StructrApp.getInstance(securityContext).nodeQuery().disableCypher();
 
 			query.and(Page.path, path);
 			query.and().orType(Page.class).orTypes(File.class);
@@ -1117,7 +1117,7 @@ public class HtmlServlet extends HttpServlet implements HttpServiceServlet {
 
 			logger.log(Level.FINE, "Requested name: {0}", name);
 
-			final Query query = StructrApp.getInstance(securityContext).nodeQuery();
+			final Query query = StructrApp.getInstance(securityContext).nodeQuery().disableCypher();
 
 			query.and(AbstractNode.name, name);
 			query.and().orType(Page.class).orTypes(File.class);
