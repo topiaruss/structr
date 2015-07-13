@@ -71,7 +71,7 @@ public class GlobalPropertyUniquenessValidator<T> implements PropertyValidator<T
 
 				} else {
 
-					existingNode = StructrApp.getInstance().nodeQuery(AbstractNode.class).and(key, value).getFirst();
+					existingNode = StructrApp.getInstance().nodeQuery(AbstractNode.class).and(key, value).disableCypher().getFirst();
 				}
 
 			} catch (FrameworkException fex) {

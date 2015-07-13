@@ -263,13 +263,13 @@ public class SchemaHelper {
 
 		try {
 
-			for (final SchemaNode schemaNode : StructrApp.getInstance().nodeQuery(SchemaNode.class).getAsList()) {
+			for (final SchemaNode schemaNode : StructrApp.getInstance().nodeQuery(SchemaNode.class).disableCypher().getAsList()) {
 
 				createDynamicGrants(schemaNode.getResourceSignature());
 
 			}
 
-			for (final SchemaRelationshipNode schemaRelationship : StructrApp.getInstance().nodeQuery(SchemaRelationshipNode.class).getAsList()) {
+			for (final SchemaRelationshipNode schemaRelationship : StructrApp.getInstance().nodeQuery(SchemaRelationshipNode.class).disableCypher().getAsList()) {
 
 				createDynamicGrants(schemaRelationship.getResourceSignature());
 				createDynamicGrants(schemaRelationship.getInverseResourceSignature());
@@ -293,7 +293,7 @@ public class SchemaHelper {
 		final App app = StructrApp.getInstance();
 		try {
 
-			ResourceAccess grant = app.nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).getFirst();
+			ResourceAccess grant = app.nodeQuery(ResourceAccess.class).and(ResourceAccess.signature, signature).disableCypher().getFirst();
 			if (grant == null) {
 
 				// create new grant
@@ -330,7 +330,7 @@ public class SchemaHelper {
 		try {
 
 			// delete grants
-			for (DynamicResourceAccess grant : app.nodeQuery(DynamicResourceAccess.class).getAsList()) {
+			for (DynamicResourceAccess grant : app.nodeQuery(DynamicResourceAccess.class).disableCypher().getAsList()) {
 				app.delete(grant);
 			}
 
@@ -346,20 +346,20 @@ public class SchemaHelper {
 		try {
 
 			// delete grant
-			DynamicResourceAccess grant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, signature).getFirst();
+			DynamicResourceAccess grant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, signature).disableCypher().getFirst();
 			if (grant != null) {
 
 				app.delete(grant);
 			}
 
 			// delete grant
-			DynamicResourceAccess schemaGrant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, "_schema/" + signature).getFirst();
+			DynamicResourceAccess schemaGrant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, "_schema/" + signature).disableCypher().getFirst();
 			if (schemaGrant != null) {
 
 				app.delete(schemaGrant);
 			}
 			// delete grant
-			DynamicResourceAccess viewGrant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, signature + "/_Ui").getFirst();
+			DynamicResourceAccess viewGrant = app.nodeQuery(DynamicResourceAccess.class).and(DynamicResourceAccess.signature, signature + "/_Ui").disableCypher().getFirst();
 			if (viewGrant != null) {
 
 				app.delete(viewGrant);

@@ -81,7 +81,7 @@ public class TypeUniquenessValidator<T> implements PropertyValidator<T> {
 
 			try {
 
-				result = StructrApp.getInstance().nodeQuery(type).and(key, value).getAsList();
+				result = StructrApp.getInstance().nodeQuery(type).and(key, value).disableCypher().getAsList();
 
 			} catch (FrameworkException fex) {
 

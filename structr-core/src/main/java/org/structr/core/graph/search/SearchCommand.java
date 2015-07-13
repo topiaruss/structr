@@ -148,7 +148,7 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 		final boolean anonymous     = securityContext.getUser(false) == null;
 
 		// optimization: use cypher when possible
-		if (!disableCypher && useCypherIfPossible() && offsetId == null && exactSearch && rootGroup.canUseCypher() && pageSize >= 0 && (sortKey == null || !sortKey.isPassivelyIndexed())) {
+		if (!disableCypher && labels.size() == 1 && useCypherIfPossible() && offsetId == null && exactSearch && rootGroup.canUseCypher() && pageSize >= 0 && (sortKey == null || !sortKey.isPassivelyIndexed())) {
 
 			final StringBuilder queryBuffer = new StringBuilder();
 
@@ -183,7 +183,9 @@ public abstract class SearchCommand<S extends PropertyContainer, T extends Graph
 				queryBuffer.append(sortDescending ? " DESC" : "");
 			}
 
-			//System.out.println("Using Cypher: " + queryBuffer.toString());
+			System.out.println("Using Cypher: " + queryBuffer.toString());
+
+			Thread.dumpStack();
 
 			final GraphDatabaseService graphDb = (GraphDatabaseService)getArgument("graphDb");
 			final org.neo4j.graphdb.Result result = graphDb.execute(queryBuffer.toString());

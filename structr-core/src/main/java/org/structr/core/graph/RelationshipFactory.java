@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.helpers.collection.LruMap;
+import org.structr.core.Services;
 import org.structr.core.app.StructrApp;
 
 //~--- classes ----------------------------------------------------------------
@@ -47,7 +48,7 @@ import org.structr.core.app.StructrApp;
 public class RelationshipFactory<T extends RelationshipInterface> extends Factory<Relationship, T> {
 
 	private static final Logger logger = Logger.getLogger(RelationshipFactory.class.getName());
-	private static final Map<Long, Class> idTypeMap = Collections.synchronizedMap(new LruMap<Long, Class>(1000000));
+	private static final Map<Long, Class> idTypeMap = Collections.synchronizedMap(new LruMap<Long, Class>(Services.parseInt(StructrApp.getConfigurationValue(Services.APPLICATION_RELATIONSHIP_CACHE), 10000)));
 
 	// private Map<String, Class> nodeTypeCache = new ConcurrentHashMap<String, Class>();
 	public RelationshipFactory(final SecurityContext securityContext) {

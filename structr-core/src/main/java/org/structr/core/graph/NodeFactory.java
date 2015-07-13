@@ -31,6 +31,7 @@ import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.helpers.collection.LruMap;
 import org.structr.common.AccessControllable;
 import org.structr.core.Result;
+import org.structr.core.Services;
 import org.structr.core.app.StructrApp;
 import org.structr.core.entity.GenericNode;
 import org.structr.core.entity.relationship.NodeHasLocation;
@@ -46,7 +47,7 @@ import org.structr.core.entity.relationship.NodeHasLocation;
 public class NodeFactory<T extends NodeInterface & AccessControllable> extends Factory<Node, T> {
 
 	private static final Logger logger = Logger.getLogger(NodeFactory.class.getName());
-	private static final Map<Long, Class> idTypeMap = Collections.synchronizedMap(new LruMap<Long, Class>(1000000));
+	private static final Map<Long, Class> idTypeMap = Collections.synchronizedMap(new LruMap<Long, Class>(Services.parseInt(StructrApp.getConfigurationValue(Services.APPLICATION_NODE_CACHE), 10000)));
 
 	public NodeFactory(final SecurityContext securityContext) {
 		super(securityContext);

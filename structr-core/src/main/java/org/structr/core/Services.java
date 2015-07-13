@@ -111,6 +111,9 @@ public class Services {
 	public static final String ACCESS_CONTROL_EXPOSE_HEADERS        = "access.control.expose.headers";
 	public static final String APPLICATION_SESSION_TIMEOUT          = "application.session.timeout";
 	public static final String APPLICATION_SECURITY_OWNERLESS_NODES = "application.security.ownerless.nodes";
+	public static final String APPLICATION_NODE_CACHE               = "application.cache.relationship";
+	public static final String APPLICATION_RELATIONSHIP_CACHE       = "application.cache.node";
+	public static final String APPLICATION_UUID_CACHE               = "application.cache.uuid";
 	public static final String SNAPSHOT_PATH                        = "snapshot.path";
 	public static final String WEBSOCKET_FRONTEND_ACCESS            = "WebSocketServlet.frontendAccess";
 

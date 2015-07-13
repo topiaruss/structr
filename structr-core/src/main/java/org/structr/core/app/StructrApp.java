@@ -71,8 +71,9 @@ import org.structr.schema.ConfigurationProvider;
  */
 public class StructrApp implements App {
 
-	private static final Map<String, Long> nodeUuidMap = Collections.synchronizedMap(new LruMap<String, Long>(1000000));
-	private static final Map<String, Long> relUuidMap  = Collections.synchronizedMap(new LruMap<String, Long>(1000000));
+	private static final int cacheSize                 = Services.parseInt(StructrApp.getConfigurationValue(Services.APPLICATION_UUID_CACHE), 10000);
+	private static final Map<String, Long> nodeUuidMap = Collections.synchronizedMap(new LruMap<String, Long>(cacheSize));
+	private static final Map<String, Long> relUuidMap  = Collections.synchronizedMap(new LruMap<String, Long>(cacheSize));
 	private static final Logger logger                 = Logger.getLogger(StructrApp.class.getName());
 	private static final URI schemaBaseURI             = URI.create("https://structr.org/v1.1/#");
 	private static final Object globalConfigLock       = new Object();
