@@ -31,6 +31,9 @@ var _Widgets = {
 	group_icon: 'icon/folder.png',
 	add_widget_icon: 'icon/layout_add.png',
 	delete_widget_icon: 'icon/layout_delete.png',
+	unload: function() {
+		$(main.children('table')).remove();
+	},
 	refreshWidgets: function() {
 		widgets.empty();
 
