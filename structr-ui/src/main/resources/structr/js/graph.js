@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -26,25 +26,42 @@ var activeTabLeftGraph, activeTabRightGraph;
 var queriesSlideout, displaySlideout, filtersSlideout, nodesSlideout, relationshipsSlideout, graph;
 var savedQueriesKey = 'structrSavedQueries_' + port;
 var relTypes = {}, nodeTypes = {}, nodeColors = {}, relColors = {}, hasDragged, hasDoubleClicked, clickTimeout, doubleClickTime = 250, refreshTimeout;
-var hiddenNodeTypes = [], hiddenRelTypes = []; //['OWNS', 'SECURITY'];
+var filteredNodeTypes = [], hiddenNodeTypes = [], hiddenRelTypes = []; //['OWNS', 'SECURITY'];
 var edgeType = 'curvedArrow';
 var schemaNodes = {}, schemaRelationships = {}, schemaNodesById = {};
-
+var displayHtmlTypes = false, displayCustomTypes = true, displayCoreTypes = false, displayUiTypes = false, displayLogTypes = false, displayOtherTypes = false;
 var maxRels = 100, defaultNodeColor = '#a5a5a5', defaultRelColor = '#cccccc';
 var tmpX, tmpY;
 var forceAtlas2Config = {
 	gravity: 1,
 	strongGravityMode: true,
 	adjustSizes: true,
-	iterationsPerRender: 10,
+	iterationsPerRender: 1000,
 	barnesHutOptimize: false,
 	slowDown: 2
 		//outboundAttractionDistribution: true
 		//startingIterations: 1000
 };
 
+var animating = false;
+var timeout   = 0;
+var expanded  = {};
+var count     = 0;
+
 $(document).ready(function() {
 	Structr.registerModule('graph', _Graph);
+
+	$(document.body).on('mousedown', function(e) {
+		tmpX = e.clientX;
+		tmpY = e.clientY;
+	});
+
+	$(document.body).on('mouseup', function(e) {
+		hasDragged = (tmpX && tmpY && (tmpX !== e.clientX || tmpY !== e.clientY));
+		tmpX = e.clientX;
+		tmpY = e.clientY;
+	});
+
 });
 
 var _Graph = {
@@ -106,8 +123,10 @@ var _Graph = {
 		colors.push('#9A6800');
 		colors.push('#9A4700');
 
+		var max = 255, min = 0;
+		
 		for (i = 50; i < 999; i++) {
-			var color = 'rgb(' + (Math.floor((256 - 199) * Math.random()) + 200) + ',' + (Math.floor((256 - 199) * Math.random()) + 200) + ',' + (Math.floor((256 - 199) * Math.random()) + 200) + ')';
+			var color = 'rgb(' + (Math.floor((max - min) * Math.random()) + min) + ',' + (Math.floor((max - min) * Math.random()) + min) + ',' + (Math.floor((max - min) * Math.random()) + min) + ')';
 			colors.push(color);
 		}
 
@@ -116,35 +135,59 @@ var _Graph = {
 		sigma.renderers.def = sigma.renderers.canvas;
 
 		if (engine) {
-			//console.log('sigma engine already exists', engine);
-			_Graph.scheduleRefreshEngine();
-			return;
+			log('sigma engine already exists', engine);
+			//_Graph.scheduleRefreshEngine();
+			//_Graph.clearGraph();
+			//engine.refresh();
+			engine = undefined;
 		}
 		engine = new sigma({
 			container: 'graph-canvas',
-			settings: {
+//			settings: {
+//				immutable: false,
+//				//scalingMode: 'outside',
+//				//autoRescale: false,
+//				//batchEdgesDrawing: true,
+//				minNodeSize: 20,
+//				maxNodeSize: 20,
+//				borderSize: 4,
+//				defaultNodeBorderColor: '#a5a5a5',
+//				singleHover: true,
+//				doubleClickEnabled: false, // catch doubleClick event, see https://github.com/jacomyal/sigma.js/commit/1453afbf0d08fb5a64a88df3c3b941a2894a713b
+//
+//				minEdgeSize: 4,
+//				maxEdgeSize: 4,
+//				enableEdgeHovering: true,
+//				edgeHoverColor: 'default',
+//				edgeHoverSizeRatio: 1.3,
+//				edgeHoverExtremities: true,
+//				defaultEdgeHoverColor: '#888',
+//				//edgeLabelSize: 'proportional',
+//				minArrowSize: 12
+//					//sideMargin: 1,
+//			},
+			settings : {
 				font: 'Open Sans',
 				immutable: false,
-				//scalingMode: 'outside',
-				//autoRescale: false,
-				//batchEdgesDrawing: true,
-				minNodeSize: 20,
-				maxNodeSize: 20,
+				minNodeSize: 4,
+				maxNodeSize: 16,
 				borderSize: 4,
 				defaultNodeBorderColor: '#a5a5a5',
 				singleHover: true,
-				doubleClickEnabled: false, // catch doubleClick event, see https://github.com/jacomyal/sigma.js/commit/1453afbf0d08fb5a64a88df3c3b941a2894a713b
-
+				doubleClickEnabled: false,
 				minEdgeSize: 4,
 				maxEdgeSize: 4,
 				enableEdgeHovering: true,
 				edgeHoverColor: 'default',
 				edgeHoverSizeRatio: 1.3,
 				edgeHoverExtremities: true,
+				defaultEdgeColor: '#999',
 				defaultEdgeHoverColor: '#888',
-				//edgeLabelSize: 'proportional',
-				minArrowSize: 12
-					//sideMargin: 1,
+				minArrowSize: 12,
+				//maxArrowSize: 12,
+				labelSize: 'proportional',
+				labelSizeRatio: 1,
+				sideMargin: 100
 			}
 		});
 
@@ -154,17 +197,6 @@ var _Graph = {
 			_Graph.loadRelationships(e.data.node.id);
 			engine.renderers[0].dispatchEvent('outNode', {node: e.data.node});
 			return false;
-		});
-
-		$(document.body).on('mousedown', function(e) {
-			tmpX = e.clientX;
-			tmpY = e.clientY;
-		});
-
-		$(document.body).on('mouseup', function(e) {
-			hasDragged = (tmpX && tmpY && (tmpX !== e.clientX || tmpY !== e.clientY));
-			tmpX = e.clientX;
-			tmpY = e.clientY;
 		});
 
 		engine.bind('clickNode', function(e) {
@@ -209,124 +241,127 @@ var _Graph = {
 					return;
 				}
 				var d = _Graph.distance(node, n);
-
 				if (shiftKey && d < 200) {
 
 					var draggedNodeSchemaNode = schemaNodes[node.type];
 					//console.log('shift and in radius', n, node, sourceSchemaNode);
+
 					if (!draggedNodeSchemaNode) {
+
+						console.log("Unknown type " + node.type);
 						return;
 					}
 
-					// outgoing schema rels
-					draggedNodeSchemaNode.relatedTo.forEach(function(toRel) {
+					if (draggedNodeSchemaNode.relatedTo) {
+						
+						// outgoing schema rels
+						draggedNodeSchemaNode.relatedTo.forEach(function(toRel) {
 
-						var edgeId = node.id + '-[:' + toRel.id + ']->' + n.id;
-						var possibleTargetType = schemaNodesById[toRel.targetId].name;
+							var edgeId = node.id + '-[:' + toRel.id + ']->' + n.id;
 
-						//console.log('possible target type:', possibleTargetType, 'edge exists?', engine.graph.edges(edgeId));
+							if (toRel.allTargetTypesPossible || (toRel.possibleTargetTypes && toRel.possibleTargetTypes.contains(n.type)) && !engine.graph.edges(edgeId)) {
 
-						if (possibleTargetType === n.type && !engine.graph.edges(edgeId)) {
+								//console.log('toRel, target multi', toRel.targetMultiplicity, toRel);
 
-							//console.log('toRel, target multi', toRel.targetMultiplicity, toRel);
+								if (toRel.sourceMultiplicity === '1') {
+									engine.graph.edges().forEach(function(edge) {
+										//console.log(edge, n, node, toRel);
+										if (edge.target === n.id && edge.relType === toRel.relationshipType) {
+											edge.hidden = true;
+											edge.removed = true;
+											//console.log('outgoing rel found, will be removed', edge);
+											removedRel = edge.id;
+										}
+									});
+								}
 
-							if (toRel.sourceMultiplicity === '1') {
-								engine.graph.edges().forEach(function(edge) {
-									//console.log(edge, n, node, toRel);
-									if (edge.target === n.id && edge.relType === toRel.relationshipType) {
-										edge.hidden = true;
-										edge.removed = true;
-										//console.log('outgoing rel found, will be removed', edge);
-										removedRel = edge.id;
-									}
+								if (toRel.targetMultiplicity === '1') {
+									engine.graph.edges().forEach(function(edge) {
+										//console.log(edge, n, node, toRel);
+										if (edge.source === node.id && edge.relType === toRel.relationshipType) {
+											edge.hidden = true;
+											edge.removed = true;
+											//console.log('outgoing rel found, will be removed', edge);
+											removedRel = edge.id;
+										}
+									});
+								}
+
+								engine.graph.addEdge({
+									id: edgeId,
+									label: toRel.relationshipType,
+									source: node.id,
+									target: n.id,
+									size: 40,
+									color: '#81ce25',
+									type: 'curvedArrow',
+									added: true,
+									replaced: removedRel,
+									relType: toRel.relationshipType
+								});
+
+							}
+						});
+					}
+					
+					if (draggedNodeSchemaNode.relatedFrom) {
+						
+						// incoming schema rels
+						draggedNodeSchemaNode.relatedFrom.forEach(function(fromRel) {
+
+							var edgeId = node.id + '<-[:' + fromRel.id + ']-' + n.id;
+
+							//console.log('possible source type:', possibleSourceType, 'edge exists?', edgeId, engine.graph.edges(edgeId));
+
+							if (fromRel.allSourceTypesPossible || (fromRel.possibleSourceTypes && fromRel.possibleSourceTypes.contains(n.type)) && !engine.graph.edges(edgeId)) {
+
+								//console.log('fromRel source multi', fromRel.sourceMultiplicity, fromRel);
+
+								if (fromRel.sourceMultiplicity === '1') {
+
+									// loop over all edges if they fit the schema rel
+									engine.graph.edges().forEach(function(edge) {
+										//console.log(edge, n, node, fromRel);
+										//if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
+										if (edge.target === node.id && edge.relType === fromRel.relationshipType) {
+											edge.hidden = true;
+											edge.removed = true;
+											//console.log('outgoing rel found, will be removed', edge);
+											removedRel = edge.id;
+										}
+									});
+								}
+
+								if (fromRel.targetMultiplicity === '1') {
+
+									// loop over all edges if they fit the schema rel
+									engine.graph.edges().forEach(function(edge) {
+										//console.log(edge, n, node, fromRel);
+										//if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
+										if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
+											edge.hidden = true;
+											edge.removed = true;
+											//console.log('outgoing rel found, will be removed', edge);
+											removedRel = edge.id;
+										}
+									});
+								}
+
+								engine.graph.addEdge({
+									id: edgeId,
+									label: fromRel.relationshipType,
+									source: n.id,
+									target: node.id,
+									size: 40,
+									color: '#81ce25',
+									type: 'curvedArrow',
+									added: true,
+									replaced: removedRel,
+									relType: fromRel.relationshipType
 								});
 							}
-
-							if (toRel.targetMultiplicity === '1') {
-								engine.graph.edges().forEach(function(edge) {
-									//console.log(edge, n, node, toRel);
-									if (edge.source === node.id && edge.relType === toRel.relationshipType) {
-										edge.hidden = true;
-										edge.removed = true;
-										//console.log('outgoing rel found, will be removed', edge);
-										removedRel = edge.id;
-									}
-								});
-							}
-
-							engine.graph.addEdge({
-								id: edgeId,
-								label: toRel.relationshipType,
-								source: node.id,
-								target: n.id,
-								size: 40,
-								color: '#81ce25',
-								type: 'curvedArrow',
-								added: true,
-								replaced: removedRel,
-								relType: toRel.relationshipType
-							});
-
-						}
-					});
-
-					// incoming schema rels
-					draggedNodeSchemaNode.relatedFrom.forEach(function(fromRel) {
-
-						var edgeId = node.id + '<-[:' + fromRel.id + ']-' + n.id;
-						var possibleSourceType = schemaNodesById[fromRel.sourceId].name;
-
-						//console.log('possible source type:', possibleSourceType, 'edge exists?', edgeId, engine.graph.edges(edgeId));
-
-						if (possibleSourceType === n.type && !engine.graph.edges(edgeId)) {
-
-							//console.log('fromRel source multi', fromRel.sourceMultiplicity, fromRel);
-
-							if (fromRel.sourceMultiplicity === '1') {
-
-								// loop over all edges if they fit the schema rel
-								engine.graph.edges().forEach(function(edge) {
-									//console.log(edge, n, node, fromRel);
-									//if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
-									if (edge.target === node.id && edge.relType === fromRel.relationshipType) {
-										edge.hidden = true;
-										edge.removed = true;
-										//console.log('outgoing rel found, will be removed', edge);
-										removedRel = edge.id;
-									}
-								});
-							}
-
-							if (fromRel.targetMultiplicity === '1') {
-
-								// loop over all edges if they fit the schema rel
-								engine.graph.edges().forEach(function(edge) {
-									//console.log(edge, n, node, fromRel);
-									//if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
-									if (edge.source === n.id && edge.relType === fromRel.relationshipType) {
-										edge.hidden = true;
-										edge.removed = true;
-										//console.log('outgoing rel found, will be removed', edge);
-										removedRel = edge.id;
-									}
-								});
-							}
-
-							engine.graph.addEdge({
-								id: edgeId,
-								label: fromRel.relationshipType,
-								source: n.id,
-								target: node.id,
-								size: 40,
-								color: '#81ce25',
-								type: 'curvedArrow',
-								added: true,
-								replaced: removedRel,
-								relType: fromRel.relationshipType
-							});
-						}
-					});
-
+						});
+					}
 					_Graph.scheduleRefreshEngine();
 
 				} else {
@@ -395,112 +430,143 @@ var _Graph = {
 
 	},
 	onload: function() {
-
+		
 		$('#main-help a').attr('href', 'http://docs.structr.org/frontend-user-guide#Graph');
 
 		activeTabLeftGraph = LSWrapper.getItem(activeTabRightGraphKey);
 		activeTabRightGraph = LSWrapper.getItem(activeTabLeftGraphKey);
 
-		if ($('#graph-box') && $('#graph-box').length) {
+		main.prepend(
+			'<div id="graph-box"><div id="queries" class="slideOut slideOutLeft"><div class="compTab" id="queriesTab">Queries</div><div><button id="clear-graph">Clear Graph</button></div></div>'
+			+ '<div id="display" class="slideOut slideOutLeft"><div class="compTab" id="displayTab">Display Options</div></div>'
+			+ '<div id="filters" class="slideOut slideOutLeft"><div class="compTab" id="filtersTab">Filters</div><div id="nodeFilters"><h3>Node Filters</h3></div><div id="relFilters"><h3>Relationship Filters</h3></div></div>'
+			+ '<div class="canvas" id="graph-canvas"></div>'
+			+ '<div id="node-types" class="graph-object-types"></div>'
+			+ '<div id="relationship-types" class="graph-object-types"></div>'
+			//+ '<div id="nodes" class="slideOut slideOutRight"><div class="compTab" id="nodesTab">Nodes</div></div>'
+			//+ '<div id="relationships" class="slideOut slideOutRight"><div class="compTab" id="relationshipsTab">Relationships</div></div>'
+			+ '</div>'
+			);
 
-			$('#graph-box').show();
-			_Graph.resize();
+		queriesSlideout = $('#queries');
+		displaySlideout = $('#display');
+		filtersSlideout = $('#filters');
 
-		} else {
+		var nodeFilters = $('#nodeFilters', filtersSlideout);
 
-			main.prepend(
-				'<div id="graph-box"><div id="queries" class="slideOut slideOutLeft"><div class="compTab" id="queriesTab">Queries</div><div><button id="clear-graph">Clear Graph</button></div></div>'
-				+ '<div id="display" class="slideOut slideOutLeft"><div class="compTab" id="displayTab">Display Options</div></div>'
-				+ '<div id="filters" class="slideOut slideOutLeft"><div class="compTab" id="filtersTab">Filters</div><div id="nodeFilters"><h3>Node Filters</h3></div><div id="relFilters"><h3>Relationship Filters</h3></div></div>'
-				+ ' <div class="canvas" id="graph-canvas"></div>'
-				+ ' <div id="node-types" class="graph-object-types"> <button id="show-all-node-types">Show all</button></div>'
-				+ ' <div id="relationship-types" class="graph-object-types"></div>'
-				//+ '<div id="nodes" class="slideOut slideOutRight"><div class="compTab" id="nodesTab">Nodes</div></div>'
-				//+ '<div id="relationships" class="slideOut slideOutRight"><div class="compTab" id="relationshipsTab">Relationships</div></div>'
-				+ '</div>'
-				);
+		nodeFilters.append('<div><input type="checkbox" class="toggle-core-types"' + (displayCoreTypes ? ' checked="checked"' : '') + '> Core types</div>');
+		$('.toggle-core-types', nodeFilters).on('click', function() {
+			displayCoreTypes = !displayCoreTypes;
+			_Graph.updateNodeTypes();
+		});
 
-			queriesSlideout = $('#queries');
-			displaySlideout = $('#display');
-			filtersSlideout = $('#filters');
+		nodeFilters.append('<div><input type="checkbox" class="toggle-ui-types"' + (displayUiTypes ? ' checked="checked"' : '') + '> UI types</div>');
+		$('.toggle-ui-types', nodeFilters).on('click', function() {
+			displayUiTypes = !displayUiTypes;
+			_Graph.updateNodeTypes();
+		});
 
-			graph = $('#graph-canvas');
+		nodeFilters.append('<div><input type="checkbox" class="toggle-custom-types"' + (displayCustomTypes ? ' checked="checked"' : '') + '> Custom types</div>');
+		$('.toggle-custom-types', nodeFilters).on('click', function() {
+			displayCustomTypes = !displayCustomTypes;
+			_Graph.updateNodeTypes();
+		});
 
-			$(document.body).on('selectstart', function(e) {
-				e.preventDefault();
-				return false;
-			});
+		nodeFilters.append('<div><input type="checkbox" class="toggle-html-types"' + (displayHtmlTypes ? ' checked="checked"' : '') + '> HTML types</div>');
+		$('.toggle-html-types', nodeFilters).on('click', function() {
+			displayHtmlTypes = !displayHtmlTypes;
+			_Graph.updateNodeTypes();
+		});
 
-			graph.droppable({
-				accept: '.node-type',
-				drop: function(e, ui) {
-					var nodeType = ui.helper.text();
-					var x = ui.offset.left;
-					var y = ui.offset.top;
-					//console.log('Creating node of type', nodeType, x, y);
-					Command.create({
-						type: nodeType
-					}, function(obj) {
+		nodeFilters.append('<div><input type="checkbox" class="toggle-log-types"' + (displayLogTypes ? ' checked="checked"' : '') + '> Log types</div>');
+		$('.toggle-log-types', nodeFilters).on('click', function() {
+			displayLogTypes = !displayLogTypes;
+			_Graph.updateNodeTypes();
+		});
 
-						Command.get(obj.id, function(node) {
-							_Graph.drawNode(node);
-							_Graph.refreshEngine();
-						});
+		nodeFilters.append('<div><input type="checkbox" class="toggle-other-types"' + (displayOtherTypes ? ' checked="checked"' : '') + '> Other types</div>');
+		$('.toggle-other-types', nodeFilters).on('click', function() {
+			displayOtherTypes = !displayOtherTypes;
+			_Graph.updateNodeTypes();
+		});
 
+		graph = $('#graph-canvas');
+
+		$(document.body).on('selectstart', function(e) {
+			e.preventDefault();
+			return false;
+		});
+
+		graph.droppable({
+			accept: '.node-type',
+			drop: function(e, ui) {
+				var nodeType = ui.helper.attr('data-node-type')
+				var x = ui.offset.left;
+				var y = ui.offset.top;
+				//console.log('Creating node of type', nodeType, x, y);
+				Command.create({
+					type: nodeType
+				}, function(obj) {
+
+					Command.get(obj.id, function(node) {
+						_Graph.drawNode(node);
+						_Graph.refreshEngine();
 					});
 
-				}
-			});
+				});
 
-			_Graph.init();
+			}
+		});
 
-			nodesSlideout = $('#nodes');
-			relationshipsSlideout = $('#relationships');
+		_Graph.init();
 
-			lsw = queriesSlideout.width() + 12;
-			rsw = nodesSlideout.width() + 12;
+		nodesSlideout = $('#nodes');
+		relationshipsSlideout = $('#relationships');
 
-			$('.slideOut').on('mouseover', function() {
-				running = false;
-				return true;
-			});
+		lsw = queriesSlideout.width() + 12;
+		rsw = nodesSlideout.width() + 12;
 
-			$('.slideOut').on('mouseout', function() {
-				running = true;
-				//_Graph.scheduleRefreshEngine();
-				return true;
-			});
+		$('.slideOut').on('mouseover', function() {
+			running = false;
+			return true;
+		});
 
-			$('#queriesTab').on('click', function() {
-				if (Math.abs(queriesSlideout.position().left + lsw) <= 3) {
-					Structr.closeLeftSlideOuts([displaySlideout, filtersSlideout], activeTabLeftGraphKey);
-					Structr.openLeftSlideOut(queriesSlideout, this, activeTabLeftGraphKey);
-				} else {
-					Structr.closeLeftSlideOuts([queriesSlideout], activeTabLeftGraphKey);
-				}
-			});
+		$('.slideOut').on('mouseout', function() {
+			running = true;
+			//_Graph.scheduleRefreshEngine();
+			return true;
+		});
 
-			$('#displayTab').on('click', function() {
-				if (Math.abs(displaySlideout.position().left + lsw) <= 3) {
-					Structr.closeLeftSlideOuts([queriesSlideout, filtersSlideout], activeTabLeftGraphKey);
-					Structr.openLeftSlideOut(displaySlideout, this, activeTabLeftGraphKey, function() {
-						//console.log('Display options opened');
-					});
-				} else {
-					Structr.closeLeftSlideOuts([displaySlideout], activeTabLeftGraphKey);
-				}
-			});
+		$('#queriesTab').on('click', function() {
+			if (Math.abs(queriesSlideout.position().left + lsw) <= 3) {
+				Structr.closeLeftSlideOuts([displaySlideout, filtersSlideout], activeTabLeftGraphKey);
+				Structr.openLeftSlideOut(queriesSlideout, this, activeTabLeftGraphKey);
+			} else {
+				Structr.closeLeftSlideOuts([queriesSlideout], activeTabLeftGraphKey);
+			}
+		});
 
-			$('#filtersTab').on('click', function() {
-				if (Math.abs(filtersSlideout.position().left + lsw) <= 3) {
-					Structr.closeLeftSlideOuts([queriesSlideout, displaySlideout], activeTabLeftGraphKey);
-					Structr.openLeftSlideOut(filtersSlideout, this, activeTabLeftGraphKey, function() {
-						//console.log('Filters opened');
-					});
-				} else {
-					Structr.closeLeftSlideOuts([filtersSlideout], activeTabLeftGraphKey);
-				}
-			});
+		$('#displayTab').on('click', function() {
+			if (Math.abs(displaySlideout.position().left + lsw) <= 3) {
+				Structr.closeLeftSlideOuts([queriesSlideout, filtersSlideout], activeTabLeftGraphKey);
+				Structr.openLeftSlideOut(displaySlideout, this, activeTabLeftGraphKey, function() {
+					//console.log('Display options opened');
+				});
+			} else {
+				Structr.closeLeftSlideOuts([displaySlideout], activeTabLeftGraphKey);
+			}
+		});
+
+		$('#filtersTab').on('click', function() {
+			if (Math.abs(filtersSlideout.position().left + lsw) <= 3) {
+				Structr.closeLeftSlideOuts([queriesSlideout, displaySlideout], activeTabLeftGraphKey);
+				Structr.openLeftSlideOut(filtersSlideout, this, activeTabLeftGraphKey, function() {
+					//console.log('Filters opened');
+				});
+			} else {
+				Structr.closeLeftSlideOuts([filtersSlideout], activeTabLeftGraphKey);
+			}
+		});
 
 //        $('#nodesTab').on('click', function() {
 //            if (nodesSlideout.position().left === $(window).width()) {
@@ -524,102 +590,101 @@ var _Graph = {
 //            }
 //        });
 
-			if (activeTabLeftGraph) {
-				$('#' + activeTabLeftGraph).addClass('active').click();
-			}
-
-			if (activeTabRightGraph) {
-				$('#' + activeTabRightGraph).addClass('active').click();
-			}
-
-			queriesSlideout.append('<div class="query-box"><textarea class="search" name="rest" cols="39" rows="4" placeholder="Enter a REST query here"></textarea><img class="clearSearchIcon" id="clear-rest" src="icon/cross_small_grey.png">'
-				+ '<button id="exec-rest">Execute REST query</button></div>');
-
-			queriesSlideout.append('<div class="query-box"><textarea class="search" name="cypher" cols="39" rows="4" placeholder="Enter a Cypher query here"></textarea><img class="clearSearchIcon" id="clear-cypher" src="icon/cross_small_grey.png">'
-				+ '<button id="exec-cypher">Execute Cypher query</button></div>');
-
-			queriesSlideout.append('<div id="cypher-params"><h3>Cypher Parameters</h3><img id="add-cypher-parameter" src="icon/add.png">');
-			_Graph.appendCypherParameter($('#cypher-params'));
-
-			$('#clear-graph').on('click', function() {
-				_Graph.clearGraph();
-			});
-
-			$('#exec-rest').on('click', function() {
-				var query = $('.search[name=rest]').val();
-				if (query && query.length) {
-					_Graph.execQuery(query, 'rest');
-				}
-			});
-
-			$('#exec-cypher').on('click', function() {
-				var query = $('.search[name=cypher]').val();
-				var params = {};
-				var names = $.map($('[name="cyphername[]"]'), function(n) {
-					return $(n).val();
-				});
-				var values = $.map($('[name="cyphervalue[]"]'), function(v) {
-					return $(v).val();
-				});
-
-				for (var i = 0; i < names.length; i++) {
-					params[names[i]] = values[i];
-				}
-
-				if (query && query.length) {
-					_Graph.execQuery(query, 'cypher', JSON.stringify(params));
-				}
-			});
-
-			$('#add-cypher-parameter').on('click', function() {
-				_Graph.appendCypherParameter($('#cypher-params'));
-			});
-
-			_Graph.activateClearSearchIcon();
-
-			queriesSlideout.append('<div><h3>Saved Queries</h3></div>');
-			_Graph.listSavedQueries();
-
-			//_Graph.restoreSavedQuery(0);
-
-			searchField = $('.search', queriesSlideout);
-			searchField.focus();
-			searchField.keydown(function(e) {
-				var rawSearchString = $(this).val();
-				var searchString = rawSearchString;
-
-				var self = $(this);
-				var type = self.attr('name');
-				if (type !== 'cypher') {
-
-					var type;
-					var posOfColon = rawSearchString.indexOf(':');
-					if (posOfColon > -1) {
-						type = rawSearchString.substring(0, posOfColon);
-						type = type.capitalize();
-						searchString = rawSearchString.substring(posOfColon + 1, rawSearchString.length);
-					}
-				}
-				if (searchString && searchString.length) {
-					_Graph.activateClearSearchIcon(type);
-				} else {
-					_Graph.clearSearch(type);
-				}
-
-				if (searchString && searchString.length && e.which === 13) {
-					//console.log('Search executed', searchString, type);
-
-					if (!shiftKey) {
-						_Graph.execQuery(searchString, type);
-						return false;
-					}
-
-				} else if (e.which === 27 || rawSearchString === '') {
-					_Graph.clearSearch(type);
-				}
-			});
-
+		if (activeTabLeftGraph) {
+			$('#' + activeTabLeftGraph).addClass('active').click();
 		}
+
+		if (activeTabRightGraph) {
+			$('#' + activeTabRightGraph).addClass('active').click();
+		}
+
+		queriesSlideout.append('<div class="query-box"><textarea class="search" name="rest" cols="39" rows="4" placeholder="Enter a REST query here"></textarea><img class="clearSearchIcon" id="clear-rest" src="icon/cross_small_grey.png">'
+			+ '<button id="exec-rest">Execute REST query</button></div>');
+
+		queriesSlideout.append('<div class="query-box"><textarea class="search" name="cypher" cols="39" rows="4" placeholder="Enter a Cypher query here"></textarea><img class="clearSearchIcon" id="clear-cypher" src="icon/cross_small_grey.png">'
+			+ '<button id="exec-cypher">Execute Cypher query</button></div>');
+
+		queriesSlideout.append('<div id="cypher-params"><h3>Cypher Parameters</h3><img id="add-cypher-parameter" src="icon/add.png">');
+		_Graph.appendCypherParameter($('#cypher-params'));
+
+		$('#clear-graph').on('click', function() {
+			_Graph.clearGraph();
+		});
+
+		$('#exec-rest').on('click', function() {
+			var query = $('.search[name=rest]').val();
+			if (query && query.length) {
+				_Graph.execQuery(query, 'rest');
+			}
+		});
+
+		$('#exec-cypher').on('click', function() {
+			var query = $('.search[name=cypher]').val();
+			var params = {};
+			var names = $.map($('[name="cyphername[]"]'), function(n) {
+				return $(n).val();
+			});
+			var values = $.map($('[name="cyphervalue[]"]'), function(v) {
+				return $(v).val();
+			});
+
+			for (var i = 0; i < names.length; i++) {
+				params[names[i]] = values[i];
+			}
+
+			if (query && query.length) {
+				_Graph.execQuery(query, 'cypher', JSON.stringify(params));
+			}
+		});
+
+		$('#add-cypher-parameter').on('click', function() {
+			_Graph.appendCypherParameter($('#cypher-params'));
+		});
+
+		_Graph.activateClearSearchIcon();
+
+		queriesSlideout.append('<div><h3>Saved Queries</h3></div>');
+		_Graph.listSavedQueries();
+
+		//_Graph.restoreSavedQuery(0);
+
+		searchField = $('.search', queriesSlideout);
+		searchField.focus();
+		searchField.keydown(function(e) {
+			var rawSearchString = $(this).val();
+			var searchString = rawSearchString;
+
+			var self = $(this);
+			var type = self.attr('name');
+			if (type !== 'cypher') {
+
+				var type;
+				var posOfColon = rawSearchString.indexOf(':');
+				if (posOfColon > -1) {
+					type = rawSearchString.substring(0, posOfColon);
+					type = type.capitalize();
+					searchString = rawSearchString.substring(posOfColon + 1, rawSearchString.length);
+				}
+			}
+			if (searchString && searchString.length) {
+				_Graph.activateClearSearchIcon(type);
+			} else {
+				_Graph.clearSearch(type);
+			}
+
+			if (searchString && searchString.length && e.which === 13) {
+				//console.log('Search executed', searchString, type);
+
+				if (!shiftKey) {
+					_Graph.execQuery(searchString, type);
+					return false;
+				}
+
+			} else if (e.which === 27 || rawSearchString === '') {
+				_Graph.clearSearch(type);
+			}
+		});
+
 
 		win.off('resize');
 		win.resize(function() {
@@ -672,6 +737,7 @@ var _Graph = {
 
 		if (engine) {
 			_Graph.resize();
+			_Graph.scheduleRefreshEngine();
 		}
 
 	},
@@ -749,14 +815,23 @@ var _Graph = {
 		$('.search[name=' + type + ']').val('').focus();
 	},
 	clearGraph: function() {
+		//console.log('clearGraph');
+		colors = [];
 		relTypes = {};
 		nodeTypes = {};
 		//nodeColors = {};
 		//relColors = {};
 		nodeIds = [];
 		relIds = [];
+		hiddenNodeTypes = [];
+		hiddenRelTypes = [];
 		engine.graph.clear();
 		engine.refresh();
+		//engine = undefined;
+	},
+	unload: function() {
+		//console.log('unload graph');
+		_Graph.clearGraph();
 	},
 	loadRelationships: function(nodeId) {
 		if (nodeId) {
@@ -773,10 +848,10 @@ var _Graph = {
 					while (i < results.length && count < maxRels) {
 						var r = results[i++];
 						if (relIds.indexOf(r.id) === -1) {
-							relIds.push(r.id);
 							_Graph.loadRelationship(r);
 						}
 					}
+					_Graph.scheduleRefreshEngine();
 				}
 			});
 
@@ -793,10 +868,11 @@ var _Graph = {
 					while (i < results.length && count < maxRels) {
 						var r = results[i++];
 						if (relIds.indexOf(r.id) === -1) {
-							relIds.push(r.id);
 							_Graph.loadRelationship(r);
 						}
 					}
+
+					_Graph.scheduleRefreshEngine();
 				}
 			});
 		}
@@ -804,12 +880,18 @@ var _Graph = {
 	loadNode: function(nodeId, callback) {
 		//console.log('loadNode', nodeId, callback);
 		if (nodeId) {
-			Command.get(nodeId, function(n) {
-				_Graph.drawNode(n);
+			if (isIn(nodeId, nodeIds)) {
 				if (callback) {
 					callback();
 				}
-			});
+			} else {
+				Command.get(nodeId, function(n) {
+					_Graph.drawNode(n);
+					if (callback) {
+						callback();
+					}
+				});
+			}
 		}
 	},
 	loadRelationship: function(rel) {
@@ -830,12 +912,12 @@ var _Graph = {
 		return edges;
 	},
 	drawNode: function(node, x, y) {
-		if (isIn(node.id, nodeIds)) {
+		if (isIn(node.id, nodeIds) || isIn(node.type, filteredNodeTypes)) {
 			return;
 		}
 		nodeIds.push(node.id);
 		_Graph.setNodeColor(node);
-		//console.log('drawing node', node, nodeTypes[node.type]);
+		//console.log('drawing node', node, nodeTypes[node.type], isIn(node.type, hiddenNodeTypes));
 		engine.graph.addNode({
 			id: node.id || node.name,
 			label: (node.name || node.tag || node.id.substring(0, 5) + '…') + ':' + node.type,
@@ -847,10 +929,13 @@ var _Graph = {
 			name: node.name,
 			hidden: isIn(node.type, hiddenNodeTypes)
 		});
-		_Graph.scheduleRefreshEngine();
+		//_Graph.scheduleRefreshEngine();
 		//_Graph.updateNodeTypes();
 	},
 	drawRel: function(r) {
+		if (isIn(r.id, relIds) || (!isIn(r.sourceId, nodeIds) || !isIn(r.targetId, nodeIds)) ) {
+			return;
+		}
 		relIds.push(r.id);
 		_Graph.setRelationshipColor(r);
 		//var existingEdges = _Graph.findRelationships(r.sourceId, r.targetId, r.relType);
@@ -911,21 +996,21 @@ var _Graph = {
 			width: win.width()
 		});
 
-		$('canvas', graph).css({
+		$('canvas', graph).css({	
 			height: ch,
 			width: win.width()
 		});
 
-		$nodeTypes = $('#node-types');
-		var distance = $nodeTypes.position().top - 61;
+		nodeTypes = $('#node-types');
+		var distance = nodeTypes.position().top - 61;
 		var boxHeight = (ch - (3 * distance)) / 2;
 
-		$nodeTypes.css({
+		nodeTypes.css({
 			height: boxHeight
 		});
 
 		$('#relationship-types').css({
-			top: $nodeTypes.position().top + boxHeight + distance,
+			top: nodeTypes.position().top + boxHeight + distance,
 			height: boxHeight
 		});
 
@@ -967,15 +1052,50 @@ var _Graph = {
 	updateNodeTypes: function() {
 
 		var nodeTypesBox = $('#node-types');
-		nodeTypesBox.empty();
-		//nodeTypesBox.append('<button id="show-all-node-types">Show all</button>');
+		fastRemoveAllChildren(nodeTypesBox[0]);	
+		
 		// getByType: function(type, pageSize, page, sort, order, properties, includeDeletedAndHidden, callback) {
-		Command.getByType('SchemaNode', 1000, 1, "name", "asc", null, true, function(nodes) {
+		Command.getSchemaInfo(function(nodes) {
+
+			nodes.sort(function(a, b) {
+				var aName = a.name.toLowerCase();
+				var bName = b.name.toLowerCase();
+				return aName < bName ? -1 : aName > bName ? 1 : 0;
+			});
 
 			nodes.forEach(function(node) {
+				
+				var hide = false;
+				
+				if (!displayCustomTypes && node.className.startsWith('org.structr.dynamic')) hide = true;
+				if (!hide && !displayCoreTypes   && node.className.startsWith('org.structr.core.entity')) hide = true;
+				if (!hide && !displayHtmlTypes   && node.className.startsWith('org.structr.web.entity.html')) hide = true;
+				if (!hide && !displayUiTypes     && node.className.startsWith('org.structr.web.entity') && !(displayHtmlTypes && node.className.startsWith('org.structr.web.entity.html'))) hide = true;
+				if (!hide && !displayLogTypes    && node.className.startsWith('org.structr.rest.logging.entity')) hide = true;
+				if (!hide && !displayOtherTypes  && node.className.startsWith('org.structr.xmpp')) hide = true;
+				
+				//console.log(hide, node.type);
+				if (hide) {
+					filteredNodeTypes.push(node.type);
+					return;
+				} else {
+					filteredNodeTypes.splice(filteredNodeTypes.indexOf(node.type), 1);
+				}
+				
+				//console.log(filteredNodeTypes);
 
-				schemaNodes[node.name] = node;
+				schemaNodes[node.type] = node;
 				schemaNodesById[node.id] = node;
+
+				// expand comma-separated list into real collection
+				if (schemaNodes[node.type].possibleSourceTypes) {
+					schemaNodes[node.type].possibleSourceTypes = schemaNodes[node.type].possibleSourceTypes.split(",");
+				}
+
+				// expand comma-separated list into real collection
+				if (schemaNodes[node.type].possibleTargetTypes) {
+					schemaNodes[node.type].possibleTargetTypes = schemaNodes[node.type].possibleTargetTypes.split(",");
+				}
 
 				var nodeType = node.name;
 
@@ -984,30 +1104,20 @@ var _Graph = {
 				}
 
 				//Object.keys(nodeColors).forEach(function (nodeType) {
-				nodeTypesBox.append('<div id="node-type-' + nodeType + '" class="node-type"><div class="circle" style="background-color: ' + nodeColors[nodeType] + '"></div>' + nodeType + '</div>');
+				nodeTypesBox.append('<div id="node-type-' + nodeType + '" class="node-type" data-node-type="' + nodeType + '"><input type="checkbox" class="toggle-type" checked="checked"> <div class="circle" style="background-color: ' + nodeColors[nodeType] + '"></div>' + nodeType + '</div>');
 				var nt = $('#node-type-' + nodeType, nodeTypesBox);
+				
 				if (isIn(nodeType, hiddenNodeTypes)) {
 					nt.attr('data-hidden', 1);
 					nt.addClass('hidden-node-type');
-					//console.log('nodeType is hidden', nodeType);
+					console.log('nodeType is hidden', nodeType);
 				}
 				nt.on('mousedown', function() {
 					var nodeTypeEl = $(this);
 					nodeTypeEl.css({pointer: 'move'});
 					//_Graph.toggleNodeType(nodeType);
 				}).on('click', function() {
-					var n = $(this);
-					if (n.attr('data-hidden')) {
-						_Graph.showNodeType(nodeType, function() {
-							n.removeAttr('data-hidden', 1);
-							n.removeClass('hidden-node-type');
-						});
-					} else {
-						_Graph.hideNodeType(nodeType, function() {
-							n.attr('data-hidden', 1);
-							n.addClass('hidden-node-type');
-						});
-					}
+					// TODO: Query
 				}).on('mouseover', function() {
 					_Graph.highlightNodeType(nodeType);
 				}).on('mouseout', function() {
@@ -1015,12 +1125,43 @@ var _Graph = {
 				}).draggable({
 					helper: 'clone'
 				});
+				
+				$('.toggle-type', nt).on('click', function() {
+					var n = $(this);
+					if (n.attr('data-hidden')) {
+						_Graph.showNodeType(nodeType, function() {
+							n.removeAttr('data-hidden', 1);
+							//n.removeClass('hidden-node-type');
+						});
+					} else {
+						_Graph.hideNodeType(nodeType, function() {
+							n.attr('data-hidden', 1);
+							//n.addClass('hidden-node-type');
+						});
+					}
+				});
 
 			});
-
+			_Graph.filterNodeTypes(filteredNodeTypes);
 			_Graph.resize();
 		});
 
+	},
+	filterNodeTypes: function(types, callback) {console.log('filter node types')
+		types.forEach(function(type) {
+			engine.graph.nodes().forEach(function(node) {
+				if (node.type === type) {
+					//console.log(type, node.type, node);
+					engine.graph.dropNode(node.id);
+					//try { engine.graph.dropNode(node); } catch(x) {}
+				}
+			});
+		});
+		_Graph.refreshEngine();
+		if (callback) {
+			callback();
+		}
+		//console.log(hiddenNodeTypes);
 	},
 	hideNodeType: function(type, callback) {
 		engine.graph.nodes().forEach(function(node) {
@@ -1035,13 +1176,28 @@ var _Graph = {
 		}
 		//console.log(hiddenNodeTypes);
 	},
+	showNodeTypes: function(types, callback) {
+		types.forEach(function(type) {
+			engine.graph.nodes().forEach(function(node) {
+				if (node.type === type) {
+					node.hidden = false;
+				}
+			});
+			hiddenNodeTypes.splice(hiddenNodeTypes.indexOf(type), 1);
+		});
+		_Graph.refreshEngine();
+		if (callback) {
+			callback();
+		}
+		//console.log(hiddenNodeTypes);
+	},
 	showNodeType: function(type, callback) {
 		engine.graph.nodes().forEach(function(node) {
 			if (node.type === type) {
 				node.hidden = false;
 			}
 		});
-		hiddenNodeTypes.splice(hiddenNodeTypes.indexOf('type'), 1);
+		hiddenNodeTypes.splice(hiddenNodeTypes.indexOf(type), 1);
 		_Graph.refreshEngine();
 		if (callback) {
 			callback();
@@ -1175,6 +1331,7 @@ var _Graph = {
 		hasDoubleClicked = false;
 		hasDragged = false;
 		engine.refresh();
+		doLayout(20);
 	},
 	distance: function(n1, n2) {
 		var x1 = parseInt(n1['renderer1:x']);
@@ -1226,4 +1383,28 @@ function desaturate(r, g, b, k) {
 	g = Math.floor(intensity * k + g * (1 - k));
 	b = Math.floor(intensity * k + b * (1 - k));
 	return [r, g, b];
+}
+
+function doLayout(num) {
+  running = true;
+  restartLayout(num);
+}
+
+function restartLayout(num) {
+  window.setTimeout(function() {
+    animating = true;
+    sigma.layouts.fruchtermanReingold.start(engine, {
+      autoArea: false,
+      area: 1000000000,
+      gravity: 0,
+      speed: 0.1,
+      iterations: 1000
+    });
+    animating = false;
+    if (count++ < num) {
+      restartLayout(num);
+    } else {
+      count = 0;
+    }
+  }, 20);
 }

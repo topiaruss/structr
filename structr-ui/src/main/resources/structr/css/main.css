@@ -1,7 +1,7 @@
 /*
- *  Copyright (C) 2010-2014 Morgner UG (haftungsbeschränkt)
+ *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -924,7 +924,7 @@ img.button {
 }
 
 .nodeHover {
-    z-index: 99;
+    z-index: 2;
 }
 
 .nodeSelected {
@@ -941,6 +941,7 @@ img.button {
     color: #333 ! important;
     background-color: #f5f5f5 ! important;
     border: 1px solid #ccc;
+    z-index: 1;
 }
 
 #graph-canvas .node {
@@ -2233,7 +2234,7 @@ input.bitmask {
 
 #node-types {
     top: 93px;
-	overflow-y: scroll;
+    overflow-y: auto;
 }
 
 #relationship-types {

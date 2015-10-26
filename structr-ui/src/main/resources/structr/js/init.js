@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -781,6 +781,10 @@ var Structr = {
 		if (menuBlocked) return;
 		event.stopPropagation();
 		if (LSWrapper.getItem(lastMenuEntryKey) !== name || main.children().length === 0) {
+			var activeModule = Structr.modules[LSWrapper.getItem(lastMenuEntryKey)];
+			if (activeModule && activeModule.unload) {
+				activeModule.unload();
+			}
 			Structr.clearMain();
 			Structr.activateMenuEntry(name);
 			Structr.modules[name].onload();
@@ -1050,6 +1054,8 @@ var Structr = {
 				Structr.activateMenuEntry('pages');
 				window.location.href = '/structr/#pages';
 
+				if (filesystemMain && filesystemMain.length)
+					filesystemMain.hide();
 				if (files && files.length)
 					files.hide();
 				if (folders && folders.length)
@@ -1426,7 +1432,7 @@ function MessageBuilder () {
 	};
 
 	this.success = function (text) {
-		this.params.text = '<img src="icon/accept.png"> ' + text;
+		this.params.text = text;
 		return this.className('success');
 	};
 

@@ -26,7 +26,7 @@ import org.structr.schema.action.Function;
 
 /**
  *
- * @author Christian Morgner
+ *
  */
 public class FunctionExpression extends Expression {
 
@@ -64,7 +64,7 @@ public class FunctionExpression extends Expression {
 			results.add(result);
 		}
 
-		if (results.isEmpty()) {
+		if (results.isEmpty() && expressions.size() > 0) {
 			return function.usage(ctx.isJavaScriptContext());
 		}
 

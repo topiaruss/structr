@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -91,6 +91,17 @@ var Command = {
 		data.type = type;
 		obj.data = data;
 		log('getTypeInfo()', obj, callback);
+		return sendObj(obj, callback);
+	},
+	/**
+	 * Send a single GET_SCHEMA_INFO command to the server.
+	 *
+	 * The server will return a schema overviewall relevant properties.
+	 */
+	getSchemaInfo: function(callback) {
+		var obj = {};
+		obj.command = 'GET_SCHEMA_INFO';
+		log('getSchemaInfo()', obj, callback);
 		return sendObj(obj, callback);
 	},
 	/**

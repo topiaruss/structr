@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -227,7 +227,7 @@ function wsConnect() {
 						} else {
 
 							var node = Structr.node(msgObj.id);
-							
+
 							if (node) {
 
 								var progr = node.find('.progress');
@@ -295,20 +295,11 @@ function wsConnect() {
 
 				StructrModel.callCallback(data.callback, result[0]);
 
-			} else if (command.startsWith('GET') || command === 'GET_BY_TYPE' || command === 'CREATE_RELATIONSHIP') { /*********************** GET_BY_TYPE ************************/
+			} else if (command.startsWith('GET') || command === 'GET_BY_TYPE' || command === 'GET_SCHEMA_INFO' || command === 'CREATE_RELATIONSHIP') { /*********************** GET_BY_TYPE ************************/
 
 				log(command, data);
 
 				StructrModel.callCallback(data.callback, result);
-
-//				result.forEach(function (entity) {
-//
-//					// Don't append a DOM node
-//					//var obj = StructrModel.create(entity, undefined, false);
-//					StructrModel.callCallback(data.callback, entity, result.length);
-//
-//				});
-
 				StructrModel.clearCallback(data.callback);
 
 			} else if (command.endsWith('CHILDREN')) { /*********************** CHILDREN ************************/
@@ -517,7 +508,7 @@ function wsConnect() {
 				StructrModel.callCallback(data.callback);
 				StructrModel.clearCallback(data.callback);
 
-            } else if (command === 'AUTOCOMPLETE') { /*********************** AUTOCOMPLETE ************************/
+		        } else if (command === 'AUTOCOMPLETE') { /*********************** AUTOCOMPLETE ************************/
 
 				StructrModel.callCallback(data.callback, result);
 				StructrModel.clearCallback(data.callback);

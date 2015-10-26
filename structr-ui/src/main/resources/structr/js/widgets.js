@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,19 +31,59 @@ var _Widgets = {
 	group_icon: 'icon/folder.png',
 	add_widget_icon: 'icon/layout_add.png',
 	delete_widget_icon: 'icon/layout_delete.png',
+	init: function() {
+
+		Structr.initPager('Widget', 1, 25);
+
+	},
+	onload: function() {
+
+		_Widgets.init();
+
+		$('#main-help a').attr('href', 'http://docs.structr.org/frontend-user-guide#Widgets');
+
+		log('onload');
+
+		main.append('<div id="dropArea"><div class="fit-to-height" id="widgets"><h2>Local Widgets</h2><div id="widgets-content"></div></div><div class="fit-to-height" id="remoteWidgets"><h2>Remote Widgets</h2><input placeholder="Filter..." id="remoteWidgetsFilter"><div id="remoteWidgets-content"></div></div></div>');
+		widgets = $('#widgets-content');
+		remoteWidgets = $('#remoteWidgets-content');
+
+		$('#remoteWidgetsFilter').keyup(function (event) {
+
+			var e = event || window.event();
+
+			if (e.keyCode === 27) {
+				$(this).val("");
+			}
+
+			_Widgets.repaintRemoteWidgets($(this).val());
+
+		});
+
+		_Widgets.refreshWidgets();
+		_Widgets.refreshRemoteWidgets();
+
+		Structr.resize();
+
+		win.off('resize');
+		win.resize(function() {
+			Structr.resize();
+		});
+
+		Structr.unblockMenu(100);
+
+	},
 	unload: function() {
 		$(main.children('table')).remove();
 	},
 	refreshWidgets: function() {
 		widgets.empty();
-
-		Command.list('Widget', true, 1000, 1, 'name', 'asc', 'id,name,type,source,treePath,isWidget', function(entities) {
-			entities.forEach(function (entity) {
-				StructrModel.create(entity, null, false);
-				_Widgets.appendWidgetElement(entity, false, widgets);
-			});
+		widgets.append('<button class="add_widgets_icon button"><img title="Add Widget" alt="Add Widget" src="' + _Widgets.add_widget_icon + '"> Add Widget</button>');
+		$('.add_widgets_icon', main).on('click', function(e) {
+			e.stopPropagation();
+			Command.create({'type': 'Widget'});
 		});
-
+		Structr.addPager(widgets, true, 'Widget');
 		Structr.resize();
 	},
 	refreshRemoteWidgets: function() {

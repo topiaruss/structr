@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2010-2015 Structr GmbH
  *
- *  This file is part of structr <http://structr.org>.
+ *  This file is part of Structr <http://structr.org>.
  *
  *  structr is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -29,8 +29,8 @@ var _Dashboard = {
 	add_icon: 'icon/page_add.png',
 	delete_icon: 'icon/page_delete.png',
 	clone_icon: 'icon/page_copy.png',
-	init: function() {
-	},
+	init: function() {},
+	unload: function() {},
 	onload: function() {
 		_Dashboard.init();
 		$('#main-help a').attr('href', 'http://docs.structr.org/frontend-user-guide#Dashboard');
