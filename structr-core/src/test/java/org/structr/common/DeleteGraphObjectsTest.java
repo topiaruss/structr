@@ -34,6 +34,7 @@ import org.structr.core.entity.TestTwo;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.neo4j.graphdb.NotFoundException;
 import org.structr.core.Result;
 import org.structr.core.entity.SixOneOneToOne;
 import org.structr.core.entity.TestSix;
@@ -161,7 +162,7 @@ public class DeleteGraphObjectsTest extends StructrTest {
 				String uuid = rel.getUuid();
 				fail("Deleted entity should have thrown an exception on access.");
 
-			} catch (IllegalStateException iex) {
+			} catch (NotFoundException iex) {
 			}
 
 

@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Result;
 import org.structr.common.error.FrameworkException;
@@ -83,7 +84,7 @@ public class CypherNotInTransactionTest extends StructrTest {
 
 				String uuid = rel.getUuid();
 				assertNull("UUID of deleted relationship should be null", uuid);
-			} catch (IllegalStateException iex) {
+			} catch (NotFoundException iex) {
 			}
 
 		} catch (FrameworkException ex) {
@@ -124,7 +125,7 @@ public class CypherNotInTransactionTest extends StructrTest {
 
 				String uuid = rel.getUuid();
 				assertNull("UUID of deleted relationship should be null", uuid);
-			} catch (IllegalStateException iex) {
+			} catch (NotFoundException iex) {
 
 			}
 
@@ -173,7 +174,7 @@ public class CypherNotInTransactionTest extends StructrTest {
 
 				String uuid = rel.getUuid();
 				assertNull("UUID of deleted relationship should be null", uuid);
-			} catch (IllegalStateException iex) {
+			} catch (NotFoundException iex) {
 
 			}
 
