@@ -304,7 +304,12 @@ public class StructrApp implements App {
 
 	@Override
 	public void shutdown() {
+
 		Services.getInstance().shutdown();
+		
+		// clear caches
+		graphDb = null;
+		config  = null;
 	}
 
 	@Override
@@ -321,7 +326,7 @@ public class StructrApp implements App {
 	public void processTasks(Task... tasks) {
 
 		final AgentService agentService = getService(AgentService.class);
-		if(agentService != null) {
+		if (agentService != null) {
 
 			for(final Task task : tasks) {
 
@@ -356,7 +361,7 @@ public class StructrApp implements App {
 		return graphDb;
 	}
 
-	private GraphProperties getOrCreateGraphProperties() {
+	private GraphProperties graphProperties() {
 
 		GraphProperties graphProperties = null;
 
@@ -364,9 +369,9 @@ public class StructrApp implements App {
 
 			final NodeManager mgr = ((GraphDatabaseAPI)getGraphDatabaseService()).getDependencyResolver().resolveDependency(NodeManager.class);
 
-			tx.success();
-
 			graphProperties = mgr.newGraphProperties();
+
+			tx.success();
 
 		} catch (Throwable t) {
 			logger.log(Level.WARNING, t.getMessage());
@@ -380,31 +385,22 @@ public class StructrApp implements App {
 	public <T> T getGlobalSetting(final String key, final T defaultValue) throws FrameworkException {
 
 		if (config == null) {
-			config = getOrCreateGraphProperties();
+			config = graphProperties();
 		}
 
 		T value = null;
 
 		try (final Tx tx = StructrApp.getInstance().tx()) {
 
-			value = (T) config.getProperty(key);
+			if (config.hasProperty(key)) {
+				value = (T) config.getProperty(key);
+			}
+
 			tx.success();
 
 		} catch (Throwable t) {
 			logger.log(Level.WARNING, t.getMessage());
 			t.printStackTrace();
-
-			try (final Tx tx = StructrApp.getInstance().tx()) {
-
-				config = getOrCreateGraphProperties();
-				config.setProperty(key, value);
-
-				tx.success();
-
-			} catch (Throwable t1) {
-				logger.log(Level.WARNING, t1.getMessage());
-				t1.printStackTrace();
-			}
 		}
 
 		if (value == null) {
@@ -418,7 +414,7 @@ public class StructrApp implements App {
 	public void setGlobalSetting(final String key, final Object value) throws FrameworkException {
 
 		if (config == null) {
-			config = getOrCreateGraphProperties();
+			config = graphProperties();
 		}
 
 		try (final Tx tx = StructrApp.getInstance().tx()) {
@@ -429,18 +425,6 @@ public class StructrApp implements App {
 		} catch (Throwable t) {
 			logger.log(Level.WARNING, t.getMessage());
 			t.printStackTrace();
-
-			try (final Tx tx = StructrApp.getInstance().tx()) {
-
-				config = getOrCreateGraphProperties();
-				config.setProperty(key, value);
-
-				tx.success();
-
-			} catch (Throwable t1) {
-				logger.log(Level.WARNING, t1.getMessage());
-				t1.printStackTrace();
-			}
 		}
 	}
 

@@ -90,7 +90,9 @@ public class StructrTest extends TestCase {
 	@Override
 	protected void tearDown() throws Exception {
 
-		Services.getInstance().shutdown();
+		app.shutdown();
+		
+		app = null;
 
 		try {
 			File testDir = new File(basePath);
