@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -42,9 +43,11 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.helpers.collection.LruMap;
 import org.structr.cmis.CMISInfo;
@@ -57,6 +60,7 @@ import org.structr.cmis.info.CMISPolicyInfo;
 import org.structr.cmis.info.CMISRelationshipInfo;
 import org.structr.cmis.info.CMISSecondaryInfo;
 import org.structr.common.AccessControllable;
+import org.structr.common.AccessPathCache;
 import org.structr.common.GraphObjectComparator;
 import org.structr.common.IdSorter;
 import org.structr.common.Permission;
@@ -877,8 +881,6 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 	}
 
 	/**
-
-	/**
 	 * Recursively traverses the graph, starting from the accessing user, to find
 	 * the effective permissions for this entity along the path of OWNS, SECURITY
 	 * and domain relationships with the PermissionPropagation marker interface.
@@ -889,96 +891,94 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 	 */
 	private boolean hasEffectivePermissions(final NodeInterface startNode, final Permission permission) {
 
-		final PermissionResolutionMask mask = new PermissionResolutionMask();
+		final RelationshipFactory relFactory = new RelationshipFactory(SecurityContext.getSuperUserInstance());
+		final String relTypes                = getPermissionPropagationRelTypes();
+		final Map<String, Object> params     = new HashMap<>();
 
-		if (hasEffectivePermissions(startNode, permission, mask, new HashSet<>())) {
+		params.put("id1", this.getId());
+		params.put("id2", startNode.getId());
 
-			// store permission resolution mask in this node
-			this.permissionResolutionMask = mask;
-			return true;
+		PermissionResolutionMask mask = AccessPathCache.get(startNode, this);
+		if (mask != null) {
+
+			return mask.allowsPermission(permission);
 		}
 
-		return false;
-	}
+		final String query  = "MATCH n, m, p = allShortestPaths(n-[" + relTypes + "]-m) WHERE id(n) = {id1} AND id(m) = {id2} RETURN p";
+		final Result result = StructrApp.getInstance().getGraphDatabaseService().execute(query, params);
 
-	/**
-	 * Recursively traverses the graph, starting from the accessing user, to find
-	 * the effective permissions for this entity along the path of OWNS, SECURITY
-	 * and domain relationships with the PermissionPropagation marker interface.
-	 *
-	 * @param startNode
-	 * @param permission
-	 * @param effectivePermissions
-	 * @param visitedIds
-	 * @return
-	 */
-	private boolean hasEffectivePermissions(final NodeInterface startNode, final Permission permission, final PermissionResolutionMask mask, final Set<Long> visitedIds) {
+		while (result.hasNext()) {
 
-		// examine all relationships
-		for (final AbstractRelationship relationship : startNode.getRelationshipsAsSuperUser()) {
+			mask                          = new PermissionResolutionMask();
+			final Map<String, Object> row = result.next();
+			final Path path               = (Path)row.get("p");
+			Node previousNode             = null;
+			boolean arrived               = true;
 
-			final long relationshipId = relationship.getId();
+			for (final PropertyContainer container : path) {
 
-			if (relationship != null && relationship instanceof PermissionPropagation && !visitedIds.contains(relationshipId)) {
+				if (container instanceof Node) {
 
-				// prevent the recursive code from traversing over this relationship again
-				visitedIds.add(relationshipId);
+					// store previous node to determine relationship direction
+					previousNode = (Node)container;
 
-				final PermissionPropagation propagation                     = (PermissionPropagation)relationship;
-				final NodeInterface otherNode                               = relationship.getOtherNode(startNode);
-				final Relationship dbRelationship                           = relationship.getRelationship();
-				final long startNodeId                                      = dbRelationship.getStartNode().getId();
-				final long thisId                                           = startNode.getId();
-				final SchemaRelationshipNode.Direction relDirection         = thisId == startNodeId ? SchemaRelationshipNode.Direction.Out : SchemaRelationshipNode.Direction.In;
-				final SchemaRelationshipNode.Direction propagationDirection = propagation.getPropagationDirection();
+					AccessPathCache.update(startNode, this, previousNode);
 
-				// check propagation direction
-				if (!propagationDirection.equals(SchemaRelationshipNode.Direction.Both)) {
+				} else {
 
-					if (propagationDirection.equals(SchemaRelationshipNode.Direction.None)) {
-						continue;
+					final Relationship rel = (Relationship)container;
+
+
+					try {
+
+						final RelationshipInterface r = relFactory.instantiate(rel);
+						if (r instanceof PermissionPropagation) {
+
+							// update cache with relationship type
+							AccessPathCache.update(startNode, this, rel);
+
+							final PermissionPropagation propagation                     = (PermissionPropagation)r;
+							final long startNodeId                                      = rel.getStartNode().getId();
+							final long thisId                                           = previousNode.getId();
+							final SchemaRelationshipNode.Direction relDirection         = thisId == startNodeId ? SchemaRelationshipNode.Direction.In : SchemaRelationshipNode.Direction.Out;
+							final SchemaRelationshipNode.Direction propagationDirection = propagation.getPropagationDirection();
+
+							// check propagation direction
+							if (!propagationDirection.equals(SchemaRelationshipNode.Direction.Both)) {
+
+								if (propagationDirection.equals(SchemaRelationshipNode.Direction.None)) {
+									arrived = false;
+									break;
+								}
+
+								if (!relDirection.equals(propagationDirection)) {
+									arrived = false;
+									break;
+								}
+							}
+
+							applyCurrentStep(propagation, mask);
+
+						} else {
+
+							arrived = false;
+							break;
+						}
+
+
+					} catch (Throwable t) {
+						t.printStackTrace();
 					}
-
-					if (!relDirection.equals(propagationDirection)) {
-						continue;
-					}
 				}
+			}
 
-				// copy mask before altering it in order to be
-				// able to restore it when the next step is a dead end
-				final PermissionResolutionMask backup = mask.copy();
+			AccessPathCache.put(startNode, this, mask);
 
-				// let this relationship modify the effective permissions
-				applyCurrentStep(propagation, mask);
-
-				// stop this path early if the effective permissions are empty
-				if (mask.isEmpty()) {
-					continue;
-				}
-
-				// finish this path segment when the destination node is reached
-				if (otherNode.getId() == getId()) {
-
-					// examine effective permissions
-					if (mask.allowsPermission(permission)) {
-						return true;
-					}
-
-					// don't traverse further
-					continue;
-				}
-
-				// go deeper, but only if the desired permission is not already there
-				if (hasEffectivePermissions(otherNode, permission, mask, visitedIds)) {
-					return true;
-				}
-
-				// restore mask so that an invalid step does not alter it
-				mask.restore(backup);
+			if (arrived && mask.allowsPermission(permission)) {
+				return true;
 			}
 		}
 
-		// worst case: we examined the whole subgraph.. :(
 		return false;
 	}
 
@@ -1554,6 +1554,10 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 		return permissionResolutionMask;
 	}
 
+	private String getPermissionPropagationRelTypes() {
+		return "*";
+	}
+
 	// ----- Cloud synchronization and replication -----
 	@Override
 	public List<GraphObject> getSyncData() throws FrameworkException {
@@ -1775,5 +1779,11 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 		public String getId() {
 			return getPrincipalId();
 		}
+	}
+
+	// ----- public static methods -----
+	public static void invalidateCacheFor(final String uuid) {
+
+
 	}
 }
