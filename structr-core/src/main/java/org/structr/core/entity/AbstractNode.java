@@ -1029,7 +1029,6 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 						AccessPathCache.put(startNode, this, new PermissionResolutionMask());
 					}
 				}
-
 			}
 
 		} catch (Throwable t) {
@@ -1844,6 +1843,4 @@ public abstract class AbstractNode implements NodeInterface, AccessControllable,
 			return getPrincipalId();
 		}
 	}
-
-	// ----- public static methods -----
 }

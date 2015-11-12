@@ -61,7 +61,7 @@ public class OtherNodeTypeFilter implements Predicate<Relationship> {
 			final Class otherNodeType = otherNode.getClass();
 
 			final boolean desiredTypeIsAssignableFromOtherNodeType = SearchCommand.getAllSubtypesAsStringSet(desiredType.getSimpleName()).contains(otherNodeType.getSimpleName());
-			
+
 			return desiredTypeIsAssignableFromOtherNodeType;
 		}
 
