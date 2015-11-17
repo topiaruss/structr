@@ -1,8 +1,8 @@
 The Dashboard controls allow you to modify visualization parameters of the layout engine.
 
 <table>
-<tr><td>Max. depth*</td><td>It's purpose is to limit the number of nodes that are displayed to increase readability.</td></tr>
-<tr><td>Max Rels*</td><td>It's purpose is to limit the number of relationships that are displayed to increase readability.</td></tr>
+<tr><td>Max. depth*</td><td>Limits the number of nodes that are displayed to increase readability.</td></tr>
+<tr><td>Max Rels*</td><td>Limits the number of relationships that are displayed to increase readability.</td></tr>
 <tr><td>Nodes</td><td>Displays the number of nodes that are in the current rendering set.</td></tr>
 <tr><td>Rels</td><td>Displays the number of relationships.</td></tr>
 <tr><td>Enable Relationships</td><td>Toggles the visibility and force of all relationships.</td></tr>
